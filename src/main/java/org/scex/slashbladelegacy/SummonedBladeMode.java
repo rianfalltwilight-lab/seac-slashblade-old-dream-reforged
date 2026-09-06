@@ -73,6 +73,15 @@ public final class SummonedBladeMode {
     public static void tooltip(ItemTooltipEvent event) {
         if (enabled(event.getItemStack())) event.getToolTip().add(Component.translatable("slashblade_legacy_compat.sb.blade"));
     }
+    public static void attackStand(mods.flammpfeil.slashblade.event.SlashBladeEvent.BladeStandAttackEvent event) {
+        if(!LegacyCompat.SUMMONED_BLADE.get() || !(event.getDamageSource().getEntity() instanceof ServerPlayer player)
+                || event.getDamageSource().getDirectEntity()!=player)return;
+        // Resharpened's soul-on-stand operations are LEFT-click attacks, not EntityInteract.
+        var stand=event.getBladeStand();
+        var interaction=new PlayerInteractEvent.EntityInteract(player,InteractionHand.MAIN_HAND,stand);
+        interact(interaction);
+        if(interaction.isCanceled())event.setCanceled(true);
+    }
     public static void input(InputCommandEvent event) {
         var player=event.getEntity();
         boolean was=event.getOld().contains(InputCommand.M_DOWN), now=event.getCurrent().contains(InputCommand.M_DOWN);

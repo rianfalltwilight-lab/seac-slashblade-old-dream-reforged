@@ -35,9 +35,9 @@ final class SbContracts {
         var stand=RegistryEvents.BladeStand.create(level);
         stand.setPos(0,160,-1);stand.setItem(blade);
         player.setItemInHand(InteractionHand.MAIN_HAND,new ItemStack(SlashBladeItems.PROUDSOUL_SPHERE.get(),2));
-        var interaction=new PlayerInteractEvent.EntityInteract(player,InteractionHand.MAIN_HAND,stand);
-        NeoForge.EVENT_BUS.post(interaction);
-        require(interaction.isCanceled() && player.getMainHandItem().getCount()==1,"SB mode switch consumption");
+        // Exercise the actual BladeStandEntity damage path used by left-clicking with the orb.
+        player.attack(stand);
+        require(!stand.isRemoved() && player.getMainHandItem().getCount()==1,"Left-click SB mode switch consumption/stand protection");
         blade=stand.getItem().copy();
         require(SummonedBladeMode.enabled(blade),"SB mode switch persisted");
         player.setItemSlot(EquipmentSlot.MAINHAND,blade);

@@ -68,6 +68,7 @@ public final class LegacySummonedBlade extends EntityAbstractSummonedSword {
         ItemStack result=ItemStack.EMPTY;
         for(int i=0;i<player.getInventory().getContainerSize();i++) {
             var candidate=player.getInventory().getItem(i);
+            if(candidate.isEmpty() || BladeStateAccess.of(candidate).isEmpty())continue;
             var data=candidate.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag();
             if(data.hasUUID(SummonedBladeMode.SOURCE) && sourceId.equals(data.getUUID(SummonedBladeMode.SOURCE))
                     && BladeStateAccess.of(candidate).isPresent()) {
@@ -192,8 +193,10 @@ public final class LegacySummonedBlade extends EntityAbstractSummonedSword {
         ownerId=tag.hasUUID("LegacyOwner")?tag.getUUID("LegacyOwner"):null;
         targetId=tag.hasUUID("LegacyTarget")?tag.getUUID("LegacyTarget"):null;
         attachedId=tag.hasUUID("LegacyAttached")?tag.getUUID("LegacyAttached"):null;
-        flightAge=Math.max(0,tag.getInt("LegacyFlightAge"));attachedAge=Math.max(0,tag.getInt("LegacyAttachedAge"));
+        flightAge=Math.clamp(tag.getInt("LegacyFlightAge"),0,100);attachedAge=Math.clamp(tag.getInt("LegacyAttachedAge"),0,200);
         aimYaw=tag.getFloat("LegacyYaw");aimPitch=tag.getFloat("LegacyPitch");
+        if(!Float.isFinite(aimYaw))aimYaw=0;
+        aimPitch=Float.isFinite(aimPitch)?Mth.clamp(aimPitch,-90,90):0;
         tickCount=flightAge; setNoGravity(true);
         setRoll(tag.getFloat("LegacyRoll"));entityData.set(SPIN,tag.getFloat("LegacySpin"));entityData.set(AGE,flightAge);
     }

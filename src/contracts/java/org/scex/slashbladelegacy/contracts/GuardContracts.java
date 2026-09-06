@@ -27,7 +27,7 @@ final class GuardContracts {
             var own=EntityType.ARROW.create(level);own.setPos(24,161,2);own.setOwner(player);level.addFreshEntity(own);entities.add(own);
             var other=EntityType.SNOWBALL.create(level);other.setPos(24,161,2);other.setOwner(enemy);level.addFreshEntity(other);entities.add(other);
             int wear=blade.getDamageValue();
-            blade.getItem().use(level,player,InteractionHand.MAIN_HAND);
+            InputClock.use(player,blade);
             require(arrow.isRemoved() && other.isRemoved() && !own.isRemoved(),"Normal blade destroy / own projectile protection: arrow="+arrow.isRemoved()+", snowball="+other.isRemoved()+", own="+own.isRemoved()+", visible="+player.hasLineOfSight(arrow)+", reach="+mods.flammpfeil.slashblade.util.TargetSelector.getResolvedReach(player)+", types="+mods.flammpfeil.slashblade.item.SwordType.from(blade)+", candidates="+level.getEntitiesOfClass(Projectile.class,player.getBoundingBox().inflate(4)).size());
             require(blade.getDamageValue()==wear+1,"Destruction batch must consume one durability");
             blade.enchant(level.registryAccess().holderOrThrow(Enchantments.POWER),1);
@@ -76,3 +76,5 @@ final class GuardContracts {
     }
     private static void require(boolean ok,String message){if(!ok)throw new AssertionError(message);}
 }
+
+

@@ -31,6 +31,8 @@ public final class LegacyCompat {
     public static final ModConfigSpec.BooleanValue HOSTILE_TARGETING;
     public static final ModConfigSpec.BooleanValue LEGACY_COMBAT;
     public static final ModConfigSpec.BooleanValue SHEATHING_REPAIR;
+    public static final ModConfigSpec.BooleanValue LEGACY_RANK;
+    public static final ModConfigSpec.BooleanValue LEGACY_TAUNT;
     static {
         var builder = new ModConfigSpec.Builder();
         BROKEN_DAMAGE = builder.comment("Restore the +2 weapon damage modifier documented in legacy 1.7/1.12.2 for broken blades. Does not repair the blade.").define("restoreBrokenDamage", true);
@@ -41,6 +43,8 @@ public final class LegacyCompat {
         HOSTILE_TARGETING = builder.comment("Preserve attacker-aware target filtering when copied for area attacks; allow audited additional_hostile_targets tag. Does not automatically attack all MONSTER category entities.").define("fixHostileTargeting", true);
         LEGACY_COMBAT = builder.comment("Use the legacy 1.12.2 combo graph and immediate melee for the default combo root. Development candidate; visual and advanced attack parity pending.").define("restoreLegacyCombat", true);
         SHEATHING_REPAIR = builder.comment("Defer default-root kill XP repair until successful legacy sheathing; requires 1000 proud souls. No extra soul award.").define("restoreSheathingRepair", true);
+        LEGACY_RANK=builder.comment("Restore legacy melee rank awards and repeat-move diminishing returns; preserve native rank HUD and networking.").define("restoreLegacyRank",true);
+        LEGACY_TAUNT=builder.comment("Completed stationary sheathing taunts visible hostile mobs within legacy 10/5/10 expansion; 30s Strength II, Speed II, Resistance I, particles, sound and rank.").define("restoreLegacyTaunt",true);
         SPEC = builder.build();
     }
     public LegacyCompat(net.neoforged.bus.api.IEventBus modBus, ModContainer container) {
@@ -54,7 +58,9 @@ public final class LegacyCompat {
         NeoForge.EVENT_BUS.addListener(EventPriority.LOW, LegacyCombat::nextCombo);
         NeoForge.EVENT_BUS.addListener(LegacyCombat::tick);
         NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, LegacySheathingRepair::timeout);
+        NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, LegacyTaunt::experience);
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST, SummonedBladeMode::interact);
+        NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST, SummonedBladeMode::attackStand);
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, SummonedBladeMode::input);
         NeoForge.EVENT_BUS.addListener(SummonedBladeMode::tooltip);
     }

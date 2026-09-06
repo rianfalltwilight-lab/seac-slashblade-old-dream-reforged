@@ -2,7 +2,7 @@ plugins {
     id 'java-library'
     id 'net.neoforged.moddev' version '2.0.144'
 }
-version = '0.1.0-dev.7'
+version = '0.1.0-dev.10'
 group = 'org.scex'
 base { archivesName = 'SEAC-SlashBlade-Old-Dream-Reforged-1.21.1' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
@@ -42,6 +42,8 @@ neoForge {
             server(); sourceSet = sourceSets.contracts
             gameDirectory = file(providers.gradleProperty('contractGameDir').getOrElse('runs/contracts'))
             jvmArgument '-Xmx4G'
+            jvmArgument '-XX:ActiveProcessorCount=2'
+            jvmArgument '-Dscex.dev9Audit=true'
         }
     }
     mods {

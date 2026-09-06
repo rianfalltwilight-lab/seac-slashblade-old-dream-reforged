@@ -128,6 +128,10 @@ public final class Contracts {
             AdvancedContracts.run(player,report);
             GuardContracts.run(player,report);
             SheathingContracts.run(player,report);
+            TauntContracts.run(player,report);
+            RegressionContracts.run(player,report);
+            SiContracts.run(player,report);
+            if(Boolean.getBoolean("scex.dev9Audit"))Dev9Audit.run(player,report);
             report.put("success",true);
         } catch (Throwable failure) {
             report.put("success",false);

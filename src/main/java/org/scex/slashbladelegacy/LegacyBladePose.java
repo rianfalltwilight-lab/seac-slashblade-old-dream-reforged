@@ -5,6 +5,9 @@ import static org.scex.slashbladelegacy.LegacyMove.*;
 
 /** Direct matrix translation of 1.12.2 LayerSlashBlade, blade/sheath transforms; no invented keyframes. */
 public final class LegacyBladePose {
+    public static boolean handlesCarry(String carry,LegacyMove move) {
+        return carry.equals("DEFAULT") || carry.equals("KATANA") || carry.equals("PSO2") && move!=NONE;
+    }
     private static float radians(float degrees){return (float)Math.toRadians(degrees);}
     public static float progress(LegacyMove move,float swing) {
         float value=Math.min(1,Math.max(0,swing)*1.2f);

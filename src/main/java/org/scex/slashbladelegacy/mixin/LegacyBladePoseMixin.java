@@ -18,15 +18,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(targets="mods.flammpfeil.slashblade.client.renderer.layers.LayerMainBlade",remap=false)
 public abstract class LegacyBladePoseMixin {
     @Shadow public abstract void renderOffhandItem(PoseStack poses,MultiBufferSource buffers,int light,LivingEntity entity);
+    @Shadow public abstract void setUserPose(PoseStack poses,LivingEntity entity,float partial,
+            mods.flammpfeil.slashblade.capability.slashblade.ISlashBladeState state);
     @Inject(method="render",at=@At("HEAD"),cancellable=true)
     private void legacyCompat$originalBladeTransforms(PoseStack poses,MultiBufferSource buffers,int light,LivingEntity entity,
                     float limbSwing,float limbAmount,float partial,float age,float yaw,float pitch,CallbackInfo ci) {
         if(!LegacyCompat.LEGACY_COMBAT.get())return;
         var blade=entity.getMainHandItem();var state=BladeStateAccess.of(blade).orElse(null);
         if(state==null || !state.getComboRoot().equals(ComboStateRegistry.STANDBY.getId()))return;
-        if(!state.getCarryType().name().equals("DEFAULT") && !state.getCarryType().name().equals("KATANA"))return;
         var current=state.peekCurrentComboStateTicks(entity);
         var move=LegacyCombat.move(current.getValue());
+        if(!LegacyBladePose.handlesCarry(state.getCarryType().name(),move))return;
         // Keep independent SA/addon animation states, rather than interpreting them as legacy idle.
         if(move==LegacyMove.NONE && !current.getValue().equals(ComboStateRegistry.NONE.getId()))return;
         if(entity.getType().is(mods.flammpfeil.slashblade.data.tag.SlashBladeEntityTypeTagProvider.EntityTypeTags.RENDER_LAYER_BLACKLIST))return;
@@ -40,6 +42,7 @@ public abstract class LegacyBladePoseMixin {
         for(boolean sheath:new boolean[]{false,true}) {
             poses.pushPose();
             try {
+                setUserPose(poses,entity,partial,state);
                 poses.mulPose(LegacyBladePose.matrix(move,progress,sheath));
                 String part=sheath?"sheath":state.isBroken()?"blade_damaged":"blade";
                 BladeRenderState.renderOverrided(blade,model,part,texture,poses,buffers,light);

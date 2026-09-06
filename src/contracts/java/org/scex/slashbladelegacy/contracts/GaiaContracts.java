@@ -68,7 +68,7 @@ final class GaiaContracts {
             bladeState.setComboSeq(mods.flammpfeil.slashblade.registry.ComboStateRegistry.NONE.getId());
             bladeState.setLastActionTime(level.getGameTime());
             float before=gaia.getHealth();
-            player.getMainHandItem().getItem().use(level,player,InteractionHand.MAIN_HAND);
+            InputClock.use(player,player.getMainHandItem());
             var slashes=level.getEntitiesOfClass(mods.flammpfeil.slashblade.entity.EntitySlashEffect.class,player.getBoundingBox().inflate(8));
             require(!slashes.isEmpty(),"Right click spawned no slash effect");
             for(var slash:slashes) {for(int tick=0;tick<4 && !slash.isRemoved();tick++)slash.tick();slash.discard();}
@@ -93,13 +93,13 @@ final class GaiaContracts {
                 bladeState.setLastActionTime(level.getGameTime());
                 player.setOnGround(true);
                 float freshHealth=fresh.getHealth();
-                player.getMainHandItem().getItem().use(level,player,InteractionHand.MAIN_HAND);
+                InputClock.use(player,player.getMainHandItem());
                 require(org.scex.slashbladelegacy.LegacyCombat.move(bladeState.getComboSeq())==org.scex.slashbladelegacy.LegacyMove.SAYA1,"Legacy Gaia test did not enter Saya1");
                 float legacyDamage=freshHealth-fresh.getHealth();
                 require(legacyDamage>0 && legacyDamage<=32,"Legacy first right click cannot damage fresh Gaia");
                 setInvul.invoke(fresh,100);fresh.invulnerableTime=0;
                 float invulnerableHealth=fresh.getHealth();
-                player.getMainHandItem().getItem().use(level,player,InteractionHand.MAIN_HAND);
+                InputClock.use(player,player.getMainHandItem());
                 require(fresh.getHealth()==invulnerableHealth,"Legacy scabbard bypassed Gaia spawn invulnerability");
                 var drive=new org.scex.slashbladelegacy.LegacyDrive(org.scex.slashbladelegacy.SummonedBladeMode.DRIVE.get(),level);
                 try {
@@ -137,3 +137,4 @@ final class GaiaContracts {
     }
     private static void require(boolean ok,String message) {if(!ok)throw new AssertionError(message);}
 }
+

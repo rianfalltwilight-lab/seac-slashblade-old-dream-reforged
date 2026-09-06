@@ -18,6 +18,7 @@ final class CombatContracts {
         state.setComboRoot(ComboStateRegistry.STANDBY.getId());state.setComboSeq(ComboStateRegistry.NONE.getId());
         state.setLastActionTime(level.getGameTime());state.setBroken(false);state.setSealed(false);
         player.setItemInHand(InteractionHand.MAIN_HAND,blade);player.setOnGround(true);
+        player.getData(mods.flammpfeil.slashblade.capability.concentrationrank.CapabilityConcentrationRank.RANK_POINT).setRawRankPoint(0);
         player.setPos(24,160,0);player.setYRot(0);player.setXRot(0);
         player.getData(mods.flammpfeil.slashblade.capability.inputstate.CapabilityInputState.INPUT_STATE).getCommands().clear();
         var target=EntityType.ZOMBIE.create(level);target.setPos(24,160,2);
@@ -28,7 +29,7 @@ final class CombatContracts {
             int durability=blade.getDamageValue();
             for(var expected:new LegacyMove[]{SAYA1,SAYA2,BATTOU}) {
                 float before=target.getHealth();
-                blade.getItem().use(level,player,InteractionHand.MAIN_HAND);
+                InputClock.use(player,blade);
                 var actual=LegacyCombat.move(state.getComboSeq());sequence.add(actual.name());
                 require(actual==expected,"Legacy right combo mismatch: "+actual);
                 require(target.getHealth()<before,"Legacy click did not damage immediately: "+expected);
@@ -38,15 +39,15 @@ final class CombatContracts {
             require(!state.onClick(),"Reentrant damage flag leaked");
             target.setHealth(2);target.invulnerableTime=0;
             state.setComboSeq(ComboStateRegistry.NONE.getId());state.setLastActionTime(level.getGameTime());
-            blade.getItem().use(level,player,InteractionHand.MAIN_HAND);
+            InputClock.use(player,blade);
             require(target.getHealth()==1,"Scabbard nonlethal floor");
-            blade.getItem().use(level,player,InteractionHand.MAIN_HAND);
+            InputClock.use(player,blade);
             require(target.getHealth()==1,"Repeated scabbard killed target");
             state.setComboSeq(ComboStateRegistry.NONE.getId());state.setLastActionTime(level.getGameTime());
             target.setHealth(20);target.hurtDuration=10;target.hurtTime=5;
             ((mods.flammpfeil.slashblade.item.ItemSlashBlade)blade.getItem()).onLeftClickEntity(blade,player,target);
             require(state.getComboSeq().equals(ComboStateRegistry.NONE.getId()),"Left click accepted before tick6");
-            target.hurtTime=4;
+            target.hurtTime=4;InputClock.next(player);
             ((mods.flammpfeil.slashblade.item.ItemSlashBlade)blade.getItem()).onLeftClickEntity(blade,player,target);
             require(LegacyCombat.move(state.getComboSeq())==KIRIAGE,"Left click tick6 rejected");
             require(target.getDeltaMovement().y==.6,"Uppercut velocity");
@@ -62,7 +63,7 @@ final class CombatContracts {
             var input=player.getData(mods.flammpfeil.slashblade.capability.inputstate.CapabilityInputState.INPUT_STATE);
             input.getCommands().addAll(java.util.EnumSet.of(mods.flammpfeil.slashblade.util.InputCommand.SNEAK,mods.flammpfeil.slashblade.util.InputCommand.FORWARD));
             state.setComboSeq(ComboStateRegistry.NONE.getId());state.setLastActionTime(level.getGameTime());
-            blade.getItem().use(level,player,InteractionHand.MAIN_HAND);
+            InputClock.use(player,blade);
             require(LegacyCombat.move(state.getComboSeq())==RAPID_SLASH,"Forward sneak rapid slash");
             require(Math.abs(player.getDeltaMovement().z-2.5)<.0001,"Rapid slash initial velocity");
             float beforeRapid=target.getHealth();
@@ -77,7 +78,7 @@ final class CombatContracts {
             player.setOnGround(false);
             input.getLastPressTimes().put(mods.flammpfeil.slashblade.util.InputCommand.BACK,level.getGameTime());
             state.setComboSeq(ComboStateRegistry.NONE.getId());state.setLastActionTime(level.getGameTime());
-            blade.getItem().use(level,player,InteractionHand.MAIN_HAND);
+            InputClock.use(player,blade);
             require(LegacyCombat.move(state.getComboSeq())==CALIBUR,"Actual buffered Calibur input");
             double beforeZ=player.getZ();double beforeY=player.getY();
             LegacyCombat.tickMotion(player,level.getGameTime()+1);
@@ -96,7 +97,9 @@ final class CombatContracts {
             double helmY=player.getY();
             LegacyCombat.tickMotion(player,level.getGameTime()+1);require(player.getY()==helmY,"Helm moved before tick2");
             LegacyCombat.tickMotion(player,level.getGameTime()+2);
-            require(Math.abs(player.getY()-(helmY-1.5))<.001,"Helm descent");
+            require(player.getY()==helmY && player.getDeltaMovement().y==-1.5,"Helm must send downward velocity rather than teleport server position");
+            player.move(net.minecraft.world.entity.MoverType.SELF,player.getDeltaMovement());
+            require(Math.abs(player.getY()-(helmY-1.5))<.001,"Helm physical descent");
             player.setOnGround(true);LegacyCombat.tickMotion(player,level.getGameTime()+3);
             for(var tested:LegacyMove.values()) for(float phase:new float[]{0,.5f,1}) {
                 var matrix=LegacyBladePose.matrix(tested,LegacyBladePose.progress(tested,phase),false);
@@ -112,3 +115,4 @@ final class CombatContracts {
     }
     private static void require(boolean condition,String message){if(!condition)throw new AssertionError(message);}
 }
+

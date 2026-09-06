@@ -10,7 +10,7 @@ The following scope is derived from that historical implementation:
 
 - `LegacyBladeMesh.java` contains the exact 26-vertex / 48-triangle SB mesh extracted from `RenderSummonedBlade`.
 - `LegacyBladePoseMixin.java` maps legacy blade and scabbard transform equations from `LayerSlashBlade`.
-- `LegacyMove.java`, `LegacyCombat.java`, `LegacyDrive.java`, `LegacyAdditionalAttack.java`, `LegacyProjectileGuard.java`, `LegacyUpthrust.java`, and `LegacySheathingRepair.java` adapt documented legacy behavior and timing to the modern API.
+- `LegacyMove.java`, `LegacyCombat.java`, `LegacyDrive.java`, `LegacyAdditionalAttack.java`, `LegacyProjectileGuard.java`, `LegacyUpthrust.java`, `LegacySheathingRepair.java`, `LegacyTaunt.java`, and `LegacyRank.java` adapt documented legacy behavior and timing to the modern API.
 - Related mixins and contract tests exercise those adaptations.
 
 Furia/flammpfeil's credit and usage terms must remain with redistributions of these portions. The project does not claim that an unrelated Forge template license relicenses the entire legacy project.

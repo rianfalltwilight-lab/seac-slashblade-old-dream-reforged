@@ -1,30 +1,23 @@
-# Validation record
+# Validation record: 0.1.0-dev.10
 
-## Candidate identity
+Public source contains 51 files, including 45 Java files. Stable mod ID: slashblade_legacy_compat. Minecraft 1.21.1 / NeoForge 21.1.248 / Java 21; locked SlashBlade 2.0.5-1.21.1 dependency remains unchanged.
 
-- Formal name: **SEAC拔刀剑附属 旧梦重铸**
-- Version: `0.1.0-dev.7`
-- Mod ID: `slashblade_legacy_compat`
-- Minecraft / NeoForge / Java: `1.21.1` / `21.1.248` / `21`
-- Locked SlashBlade: Resharpened dependency: `2.0.5-1.21.1`, 3,880,588 bytes, SHA-256 `5b60ff41d89d63e34fbae3d20d9663ae96aa4c594a10b9889a4a39905d44d1c4`
+## Public candidate verification
 
-The release workflow rebuilds from the tagged public source, reruns the isolated runtime contracts, verifies the dependency identity, checks that contract classes are absent from the runtime JAR, and generates a manifest plus SHA-256 list.
+Clean Java 21 build and all isolated contracts (including scex.dev9Audit=true) passed in a new test directory on 2026-09-06. SI integration tests explicitly skip without the optional third-party mod. Runtime excludes contract classes and external dependency binaries.
 
-## Verified behavior
+An initial run in a reused test world failed the taunt contract with present=false for its target entity. The fresh-directory run passed. Existing-world test repeatability is not claimed, and the failed log is retained internally. CI runs in a fresh checkout.
 
-- Clean Java 21 / Gradle 9.2.1 / ModDevGradle 2.0.144 build completed successfully.
-- Minimal isolated NeoForge server contracts completed with `success: true` for broken damage/reach, wall and range authority, SB lifecycle, charge windows, hostile targeting, combo and movement rules, drive/additional attacks, projectile guard/upthrust, and sheathing repair.
-- A separate locked 246-mod server combination completed the same contracts with `success: true`, including the Gaia Guardian cases.
-- Resource validation confirmed all declared mixin classes exist and development contract classes are excluded from the runtime JAR.
-- The public Git-export candidate runtime JAR is 90,984 bytes with SHA-256 `167c19e3978577e0a2818191b182ed8e71ca3880bcfcb0aec06e3ffedd89f255`; two consecutive clean builds produced the same hash.
-- The corresponding sources JAR is 44,757 bytes with SHA-256 `e2ac30594a4d96bb3613208e158b06d47876887cb06325a9c6f4d28b3a2da8ec`.
-- The prior frozen internal candidate JAR was 89,592 bytes with SHA-256 `2e72c4e5caa15cd591a33d6e715121b8ac17140785820883552d28432fb0c025` before the public display-name and build-input changes.
+Runtime: 107166 bytes; SHA-256: d0a39055e97594bde15e8d8cae74875b3dc19172db147530da31a34c49fd7dbc
 
-## Not verified
+Sources JAR: 52806 bytes; SHA-256: 9422a609ab727b93cf9710a7ebe5cec5d1f174213d3bd5637d564b2a942e2627
 
-- Real-client first-person and third-person feel, frame-level visual parity, shader blending, and first-person positioning.
-- Two-client synchronization, high latency, packet duplication, reconnect/restart behavior, and long-duration performance.
-- Production world, player data, full client pack, and live-server deployment.
-- Complete parity with every historical SlashBlade feature. The contracts cover only the behavior documented in this repository.
+Public metadata and bundled license notices differ from the internal development artifact, so their JAR hashes are not expected to match. Main Java source is copied unchanged from the authoritative dev.10 source.
 
-This is an **R (research/development) prerelease**, not an F/I/P acceptance. Publishing it does not deploy it to a server or player pack.
+## Prior development evidence
+
+Authoritative dev.10 reports record successful minimal and locked full-mod contracts. Of 67 named blades, 65 passed three-combo checks, 2 had no BladeState and were skipped. Ten SI electric blades passed basic energy and serialization checks. These are prior internal results, not the scope of public CI. No third-party JARs, production data or internal input-path manifests are distributed.
+
+## Limits
+
+Real first/third-person visuals, high-latency multiplayer, actual network packets, production-world uninstall, and scaled performance remain unverified. Allocation changes have no measured performance claim. No production server or player pack is deployed by publishing this prerelease. See [release notes](docs/releases/0.1.0-dev.10.md).

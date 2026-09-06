@@ -40,7 +40,7 @@ public final class LegacySheathingRepair {
     public static void begin(LivingEntity user,LegacyMove move) {
         if(user.level().isClientSide || !(user instanceof Player player))return;
         SHEATHS.remove(player);
-        if(handles(player.getMainHandItem()) && (move==LegacyMove.NOUTOU || move==LegacyMove.IAI || move==LegacyMove.S_IAI))
+        if((handles(player.getMainHandItem()) || LegacyTaunt.handles(player.getMainHandItem())) && (move==LegacyMove.NOUTOU || move==LegacyMove.IAI || move==LegacyMove.S_IAI))
             SHEATHS.put(player,new Sheath(player,move));
     }
     public static void timeout(SlashBladeEvent.NextOfTimeOutComboEvent event) {
@@ -53,7 +53,7 @@ public final class LegacySheathingRepair {
     public static void tick(Player player) {
         var sheath=SHEATHS.get(player);
         if(sheath==null)return;
-        if(!player.isAlive() || player.getMainHandItem()!=sheath.blade || !handles(sheath.blade)
+        if(!player.isAlive() || player.getMainHandItem()!=sheath.blade || !(handles(sheath.blade) || LegacyTaunt.handles(sheath.blade))
                 || !player.level().dimension().equals(sheath.dimension)){SHEATHS.remove(player);return;}
         if(!sheath.ready)return;
         SHEATHS.remove(player);
@@ -62,9 +62,11 @@ public final class LegacySheathingRepair {
         if(!state.getComboSeq().equals(ComboStateRegistry.NONE.getId())
                 || sheath.stationary && (Math.abs(player.getX()-sheath.position.x)>.1 || Math.abs(player.getZ()-sheath.position.z)>.1))return;
         var tag=sheath.blade.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag();
-        if(!tag.contains(CREDIT))return;
-        int repair=Math.max(1,tag.getInt(CREDIT));
-        CustomData.update(DataComponents.CUSTOM_DATA,sheath.blade,t->t.remove(CREDIT));
-        if(state.getProudSoulCount()>=1000)sheath.blade.setDamageValue(Math.max(0,sheath.blade.getDamageValue()-repair));
+        if(handles(sheath.blade) && tag.contains(CREDIT)) {
+            int repair=Math.max(1,tag.getInt(CREDIT));
+            CustomData.update(DataComponents.CUSTOM_DATA,sheath.blade,t->t.remove(CREDIT));
+            if(state.getProudSoulCount()>=1000)sheath.blade.setDamageValue(Math.max(0,sheath.blade.getDamageValue()-repair));
+        }
+        if(sheath.stationary)LegacyTaunt.fire(player,sheath.blade);
     }
 }

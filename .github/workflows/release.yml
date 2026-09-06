@@ -34,8 +34,8 @@ jobs:
         run: |
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
-          test "${version}" = '0.1.0-dev.7'
-          test "$(find src -type f | wc -l | tr -d ' ')" = '39'
+          test "${version}" = '0.1.0-dev.10'
+          test "$(find src -type f | wc -l | tr -d ' ')" = '51'
           out='build/public-release'
           mkdir -p "${out}"
           runtime="SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-${version}.jar"
@@ -45,8 +45,8 @@ jobs:
           checksums="SEAC-SlashBlade-Old-Dream-Reforged-${version}-SHA256SUMS.txt"
           cp "build/libs/${runtime}" "${out}/${runtime}"
           cp "build/libs/${sources}" "${out}/${sources}"
-          echo '167c19e3978577e0a2818191b182ed8e71ca3880bcfcb0aec06e3ffedd89f255  '"${out}/${runtime}" | sha256sum -c -
-          echo 'e2ac30594a4d96bb3613208e158b06d47876887cb06325a9c6f4d28b3a2da8ec  '"${out}/${sources}" | sha256sum -c -
+          echo 'd0a39055e97594bde15e8d8cae74875b3dc19172db147530da31a34c49fd7dbc  '"${out}/${runtime}" | sha256sum -c -
+          echo '9422a609ab727b93cf9710a7ebe5cec5d1f174213d3bd5637d564b2a942e2627  '"${out}/${sources}" | sha256sum -c -
           jar tf "${out}/${runtime}" > "${RUNNER_TEMP}/seac-slashblade-runtime-entries.txt"
           if grep -q '^org/scex/slashbladelegacy/contracts/' "${RUNNER_TEMP}/seac-slashblade-runtime-entries.txt"; then
             echo 'Development contract harness leaked into the runtime JAR.' >&2
@@ -63,13 +63,13 @@ jobs:
             --arg sources_sha "${sources_sha}" \
             --arg source_sha "${source_sha}" \
             --arg commit "${GITHUB_SHA}" \
-            '{name:$name,version:$version,status:"development prerelease; not production accepted",modId:"slashblade_legacy_compat",minecraft:"1.21.1",neoforge:"21.1.248",java:"21",slashblade:{version:"2.0.5-1.21.1",modrinthVersionId:"cw0UX6eX",sha256:"5b60ff41d89d63e34fbae3d20d9663ae96aa4c594a10b9889a4a39905d44d1c4"},sourceFiles:39,javaFiles:33,commit:$commit,validation:{publicBuild:true,minimalRuntimeContracts:true,priorLockedFullModContracts:true,interactiveClient:false,production:false},sha256:{runtime:$runtime_sha,sourcesJar:$sources_sha,sourceZip:$source_sha},aiAssisted:true}' \
+            '{name:$name,version:$version,status:"development prerelease; not production accepted",modId:"slashblade_legacy_compat",minecraft:"1.21.1",neoforge:"21.1.248",java:"21",slashblade:{version:"2.0.5-1.21.1",modrinthVersionId:"cw0UX6eX",sha256:"5b60ff41d89d63e34fbae3d20d9663ae96aa4c594a10b9889a4a39905d44d1c4"},sourceFiles:51,javaFiles:45,commit:$commit,validation:{publicBuild:true,minimalRuntimeContracts:true,priorLockedFullModContracts:true,interactiveClient:false,production:false},sha256:{runtime:$runtime_sha,sourcesJar:$sources_sha,sourceZip:$source_sha},aiAssisted:true}' \
             > "${out}/${manifest}"
           (cd "${out}" && sha256sum "${runtime}" "${sources}" "${source_zip}" "${manifest}" > "${checksums}")
       - name: Preserve release bundle
         uses: actions/upload-artifact@v6
         with:
-          name: seac-slashblade-old-dream-reforged-0.1.0-dev.7-release
+          name: seac-slashblade-old-dream-reforged-0.1.0-dev.10-release
           path: build/public-release/*
           if-no-files-found: error
       - name: Publish GitHub prerelease
@@ -78,10 +78,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          notes='docs/releases/0.1.0-dev.7.md'
+          notes='docs/releases/0.1.0-dev.10.md'
           if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
             gh release upload "${GITHUB_REF_NAME}" build/public-release/* --clobber
-            gh release edit "${GITHUB_REF_NAME}" --prerelease --title 'SEAC拔刀剑附属 旧梦重铸 0.1.0-dev.7' --notes-file "${notes}"
+            gh release edit "${GITHUB_REF_NAME}" --prerelease --title 'SEAC拔刀剑附属 旧梦重铸 0.1.0-dev.10' --notes-file "${notes}"
           else
-            gh release create "${GITHUB_REF_NAME}" build/public-release/* --prerelease --title 'SEAC拔刀剑附属 旧梦重铸 0.1.0-dev.7' --notes-file "${notes}"
+            gh release create "${GITHUB_REF_NAME}" build/public-release/* --prerelease --title 'SEAC拔刀剑附属 旧梦重铸 0.1.0-dev.10' --notes-file "${notes}"
           fi

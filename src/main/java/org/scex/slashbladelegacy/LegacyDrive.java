@@ -36,9 +36,11 @@ public final class LegacyDrive extends EntityDrive {
         return tag.getUUID(SummonedBladeMode.SOURCE);
     }
     private ItemStack blade(Player player) {
+        if(source==null)return ItemStack.EMPTY;
         ItemStack found=ItemStack.EMPTY;
         for(int i=0;i<player.getInventory().getContainerSize();i++) {
             var item=player.getInventory().getItem(i);
+            if(item.isEmpty() || BladeStateAccess.of(item).isEmpty())continue;
             var data=item.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag();
             if(source!=null && data.hasUUID(SummonedBladeMode.SOURCE) && source.equals(data.getUUID(SummonedBladeMode.SOURCE)) && BladeStateAccess.of(item).isPresent()) {
                 if(!found.isEmpty())return ItemStack.EMPTY;

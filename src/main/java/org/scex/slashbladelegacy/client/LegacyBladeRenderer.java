@@ -39,7 +39,8 @@ public final class LegacyBladeRenderer extends EntityRenderer<LegacySummonedBlad
         int color=Math.abs(entity.getColor()),r=color>>16&255,g=color>>8&255,b=color&255;
         var out=buffers.getBuffer(RenderType.lightning());
         for(int[] triangle:LegacyBladeMesh.FACES) {
-            for(int index:new int[]{triangle[0],triangle[1],triangle[2],triangle[2]}) {
+            for(int corner=0;corner<4;corner++) {
+                int index=triangle[Math.min(corner,2)];
                 double[] point=LegacyBladeMesh.VERTICES[index];
                 out.addVertex(poses.last().pose(),(float)point[0],(float)point[1],(float)point[2]).setColor(r,g,b,255);
             }

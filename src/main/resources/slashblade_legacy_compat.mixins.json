@@ -11,9 +11,12 @@
     "TargetingCopyMixin",
     "RevengeContextMixin",
     "LegacyLeftClickMixin",
+    "LegacyInputBudgetMixin",
     "LegacyPostHurtMixin",
     "LegacyReflectorMixin",
-    "LegacySheathingRepairMixin"
+    "LegacySheathingRepairMixin",
+    "LegacySlashVisualMixin",
+    "LegacyRankMixin"
   ],
   "client": [
     "LegacyBladePoseMixin"

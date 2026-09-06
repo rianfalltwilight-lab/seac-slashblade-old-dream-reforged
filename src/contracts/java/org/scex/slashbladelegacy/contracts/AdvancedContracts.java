@@ -63,7 +63,7 @@ final class AdvancedContracts {
             target.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.ARMOR).setBaseValue(0);
             blade.enchant(level.registryAccess().holderOrThrow(net.minecraft.world.item.enchantment.Enchantments.SHARPNESS),2);
             state.setKillCount(1000);state.setAttackAmplifier(2);state.setComboSeq(ComboStateRegistry.NONE.getId());state.setLastActionTime(level.getGameTime());
-            int scabbardWear=blade.getDamageValue();blade.getItem().use(level,player,InteractionHand.MAIN_HAND);
+            int scabbardWear=blade.getDamageValue();InputClock.use(player,blade);
             require(Math.abs(target.getHealth()-12.5)<.001 && blade.getDamageValue()==scabbardWear,"FiercerEdge and enchanted scabbard damage");
             report.put("enchanted_scabbard_damage",7.5);
             target.setHealth(20);target.invulnerableTime=0;
@@ -72,7 +72,7 @@ final class AdvancedContracts {
             player.setItemInHand(InteractionHand.OFF_HAND,off);
             state.setComboSeq(ComboStateRegistry.NONE.getId());state.setLastActionTime(level.getGameTime());
             int mainWear=blade.getDamageValue(),offWear=off.getDamageValue();
-            blade.getItem().use(level,player,InteractionHand.MAIN_HAND);
+            InputClock.use(player,blade);
             require(LegacyCombat.move(state.getComboSeq())==LegacyMove.FORCE1,"Actual dual input graph");
             require(player.getMainHandItem()==blade && player.getOffhandItem()==off && !state.onClick() && !offState.onClick(),"Dual hand/flag restoration");
             require(blade.getDamageValue()==mainWear && off.getDamageValue()==offWear+2,"Dual legacy durability distribution: main="+(blade.getDamageValue()-mainWear)+", off="+(off.getDamageValue()-offWear)+", health="+target.getHealth()+", attack="+player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE));
@@ -89,3 +89,4 @@ final class AdvancedContracts {
     }
     private static void require(boolean ok,String message){if(!ok)throw new AssertionError(message);}
 }
+

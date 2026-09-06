@@ -25,8 +25,8 @@ public final class LegacyUpthrust extends EntityAbstractSummonedSword {
     public LegacyUpthrust(EntityType<? extends Projectile> type,Level level){super(type,level);setNoGravity(true);}
     @Override protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder){super.defineSynchedData(builder);builder.define(TARGET,-1);}
     public static void attach(Player user,LivingEntity target) {
-        var blade=user.getMainHandItem();var state=BladeStateAccess.of(blade).orElseThrow();
-        if(user.level().isClientSide || !user.onGround() || state.isBroken() || !SwordType.from(blade).contains(SwordType.BEWITCHED)
+        var blade=user.getMainHandItem();var state=BladeStateAccess.of(blade).orElse(null);
+        if(state==null || user.level().isClientSide || !user.onGround() || state.isBroken() || !SwordType.from(blade).contains(SwordType.BEWITCHED)
                 || blade.getEnchantmentLevel(user.registryAccess().holderOrThrow(Enchantments.PUNCH))<=0)return;
         var marker=new LegacyUpthrust(SummonedBladeMode.UPTHRUST.get(),user.level());marker.setOwner(user);
         marker.targetId=target.getUUID();marker.sourceId=LegacyDrive.identity(blade);marker.entityData.set(TARGET,target.getId());
@@ -37,9 +37,12 @@ public final class LegacyUpthrust extends EntityAbstractSummonedSword {
         return entity instanceof LivingEntity living?living:null;
     }
     private ItemStack source(Player player) {
+        if(sourceId==null)return ItemStack.EMPTY;
         ItemStack found=ItemStack.EMPTY;
         for(int i=0;i<player.getInventory().getContainerSize();i++) {
-            var blade=player.getInventory().getItem(i);var tag=blade.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag();
+            var blade=player.getInventory().getItem(i);
+            if(blade.isEmpty() || BladeStateAccess.of(blade).isEmpty())continue;
+            var tag=blade.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag();
             if(sourceId!=null && tag.hasUUID(SummonedBladeMode.SOURCE) && sourceId.equals(tag.getUUID(SummonedBladeMode.SOURCE)) && BladeStateAccess.of(blade).isPresent()) {
                 if(!found.isEmpty())return ItemStack.EMPTY;found=blade;
             }
