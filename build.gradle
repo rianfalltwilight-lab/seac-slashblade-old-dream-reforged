@@ -1,0 +1,114 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev' version '2.0.144'
+}
+version = '0.1.0-dev.7'
+group = 'org.scex'
+base { archivesName = 'SEAC-SlashBlade-Old-Dream-Reforged-1.21.1' }
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+java.withSourcesJar()
+
+repositories {
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Modrinth'
+                url = uri('https://api.modrinth.com/maven')
+            }
+        }
+        filter { includeGroup 'maven.modrinth' }
+    }
+}
+
+sourceSets { contracts }
+configurations {
+    contractsImplementation.extendsFrom implementation
+    contractsRuntimeOnly.extendsFrom runtimeOnly
+    slashbladeVerification {
+        canBeConsumed = false
+        canBeResolved = true
+        transitive = false
+    }
+}
+sourceSets.contracts.compileClasspath += sourceSets.main.output
+sourceSets.contracts.runtimeClasspath += sourceSets.main.output
+neoForge {
+    version = '21.1.248'
+    addModdingDependenciesTo(sourceSets.contracts)
+    runs {
+        client { client(); gameDirectory = file('runs/client') }
+        server { server(); gameDirectory = file('runs/server') }
+        contracts {
+            server(); sourceSet = sourceSets.contracts
+            gameDirectory = file(providers.gradleProperty('contractGameDir').getOrElse('runs/contracts'))
+            jvmArgument '-Xmx4G'
+        }
+    }
+    mods {
+        slashblade_legacy_compat { sourceSet sourceSets.main }
+        slashblade_legacy_contracts { sourceSet sourceSets.contracts }
+    }
+}
+neoForge.runs.client.loadedMods = [neoForge.mods.slashblade_legacy_compat]
+neoForge.runs.server.loadedMods = [neoForge.mods.slashblade_legacy_compat]
+tasks.named('runContracts') {
+    doFirst {
+        def gameDir = file(providers.gradleProperty('contractGameDir').getOrElse('runs/contracts'))
+        gameDir.mkdirs()
+        new File(gameDir, 'eula.txt').text = 'eula=true\n'
+        new File(gameDir, 'server.properties').text = '''\
+allow-flight=true
+enable-command-block=true
+level-name=world
+max-players=1
+motd=SEAC SlashBlade isolated contracts
+online-mode=false
+server-ip=127.0.0.1
+server-port=25791
+simulation-distance=4
+spawn-protection=0
+sync-chunk-writes=true
+view-distance=4
+'''
+        new File(gameDir, 'contracts.json').delete()
+    }
+    doLast {
+        def report = file(providers.gradleProperty('contractGameDir').getOrElse('runs/contracts') + '/contracts.json')
+        if (!report.exists() || new groovy.json.JsonSlurper().parse(report).success != true)
+            throw new GradleException('Runtime contracts failed')
+    }
+}
+def slashBladeCoordinate = 'maven.modrinth:8T53F0sy:cw0UX6eX'
+dependencies {
+    implementation slashBladeCoordinate
+    slashbladeVerification slashBladeCoordinate
+}
+tasks.named('processResources') {
+    inputs.property('mod_version', project.version)
+    filesMatching('META-INF/neoforge.mods.toml') { expand(mod_version: project.version) }
+}
+tasks.register('verifyResolvedSlashBlade') {
+    inputs.file('dependencies.sha256.json')
+    inputs.files(configurations.slashbladeVerification)
+    doLast {
+        def expected = new groovy.json.JsonSlurper().parse(file('dependencies.sha256.json'))[0]
+        def resolved = configurations.slashbladeVerification.files as List
+        if (resolved.size() != 1) throw new GradleException("Expected one SlashBlade artifact, resolved ${resolved.size()}")
+        def artifact = resolved[0]
+        def actual = java.security.MessageDigest.getInstance('SHA-256').digest(artifact.bytes).encodeHex().toString()
+        if (expected.coordinate != slashBladeCoordinate || actual != expected.sha256 || artifact.length() != expected.size)
+            throw new GradleException('SlashBlade dependency identity mismatch')
+    }
+}
+tasks.withType(JavaCompile).configureEach {
+    dependsOn 'verifyResolvedSlashBlade'
+    options.encoding = 'UTF-8'
+}
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
+def bundledNotices = files('LICENSE', 'NOTICE', 'THIRD-PARTY-NOTICES.md',
+        'LICENSE-LEGACY-README.txt', 'AI-GENERATED.md')
+tasks.named('jar') { from(bundledNotices) { into 'META-INF/licenses' } }
+tasks.named('sourcesJar') { from(bundledNotices) { into 'META-INF/licenses' } }

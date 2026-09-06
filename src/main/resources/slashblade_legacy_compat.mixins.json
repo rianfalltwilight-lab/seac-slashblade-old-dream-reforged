@@ -1,0 +1,24 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "org.scex.slashbladelegacy.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "SummonedSwordArtsMixin",
+    "LegacyChargeMixin",
+    "LegacyJustWindowMixin",
+    "GaiaTargetingMixin",
+    "TargetingCopyMixin",
+    "RevengeContextMixin",
+    "LegacyLeftClickMixin",
+    "LegacyPostHurtMixin",
+    "LegacyReflectorMixin",
+    "LegacySheathingRepairMixin"
+  ],
+  "client": [
+    "LegacyBladePoseMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

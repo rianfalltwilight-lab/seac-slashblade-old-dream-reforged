@@ -1,0 +1,86 @@
+name: Publish prerelease
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+      - name: Audit, build, and run isolated contracts
+        shell: pwsh
+        run: |
+          ./scripts/verify-public-source.ps1
+          ./gradlew --no-daemon clean build runContracts
+      - name: Prepare release bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          test "${version}" = '0.1.0-dev.7'
+          test "$(find src -type f | wc -l | tr -d ' ')" = '39'
+          out='build/public-release'
+          mkdir -p "${out}"
+          runtime="SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-${version}.jar"
+          sources="SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-${version}-sources.jar"
+          source_zip="SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-${version}-source.zip"
+          manifest="SEAC-SlashBlade-Old-Dream-Reforged-${version}-release-manifest.json"
+          checksums="SEAC-SlashBlade-Old-Dream-Reforged-${version}-SHA256SUMS.txt"
+          cp "build/libs/${runtime}" "${out}/${runtime}"
+          cp "build/libs/${sources}" "${out}/${sources}"
+          echo '__RUNTIME_SHA256__  '"${out}/${runtime}" | sha256sum -c -
+          jar tf "${out}/${runtime}" > "${RUNNER_TEMP}/seac-slashblade-runtime-entries.txt"
+          if grep -q '^org/scex/slashbladelegacy/contracts/' "${RUNNER_TEMP}/seac-slashblade-runtime-entries.txt"; then
+            echo 'Development contract harness leaked into the runtime JAR.' >&2
+            exit 1
+          fi
+          git archive --format=zip --prefix="seac-slashblade-old-dream-reforged-${version}/" --output="${out}/${source_zip}" HEAD
+          runtime_sha="$(sha256sum "${out}/${runtime}" | cut -d' ' -f1)"
+          sources_sha="$(sha256sum "${out}/${sources}" | cut -d' ' -f1)"
+          source_sha="$(sha256sum "${out}/${source_zip}" | cut -d' ' -f1)"
+          jq -n \
+            --arg name 'SEAC拔刀剑附属 旧梦重铸' \
+            --arg version "${version}" \
+            --arg runtime_sha "${runtime_sha}" \
+            --arg sources_sha "${sources_sha}" \
+            --arg source_sha "${source_sha}" \
+            --arg commit "${GITHUB_SHA}" \
+            '{name:$name,version:$version,status:"development prerelease; not production accepted",modId:"slashblade_legacy_compat",minecraft:"1.21.1",neoforge:"21.1.248",java:"21",slashblade:{version:"2.0.5-1.21.1",modrinthVersionId:"cw0UX6eX",sha256:"5b60ff41d89d63e34fbae3d20d9663ae96aa4c594a10b9889a4a39905d44d1c4"},sourceFiles:39,javaFiles:33,commit:$commit,validation:{publicBuild:true,minimalRuntimeContracts:true,priorLockedFullModContracts:true,interactiveClient:false,production:false},sha256:{runtime:$runtime_sha,sourcesJar:$sources_sha,sourceZip:$source_sha},aiAssisted:true}' \
+            > "${out}/${manifest}"
+          (cd "${out}" && sha256sum "${runtime}" "${sources}" "${source_zip}" "${manifest}" > "${checksums}")
+      - name: Preserve release bundle
+        uses: actions/upload-artifact@v6
+        with:
+          name: seac-slashblade-old-dream-reforged-0.1.0-dev.7-release
+          path: build/public-release/*
+          if-no-files-found: error
+      - name: Publish GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          notes='docs/releases/0.1.0-dev.7.md'
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" build/public-release/* --clobber
+            gh release edit "${GITHUB_REF_NAME}" --prerelease --title 'SEAC拔刀剑附属 旧梦重铸 0.1.0-dev.7' --notes-file "${notes}"
+          else
+            gh release create "${GITHUB_REF_NAME}" build/public-release/* --prerelease --title 'SEAC拔刀剑附属 旧梦重铸 0.1.0-dev.7' --notes-file "${notes}"
+          fi

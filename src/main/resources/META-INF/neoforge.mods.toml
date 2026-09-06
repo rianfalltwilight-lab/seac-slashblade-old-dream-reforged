@@ -1,0 +1,30 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="MIT; legacy-derived portions use the bundled SlashBlade terms"
+[[mixins]]
+config="slashblade_legacy_compat.mixins.json"
+[[mods]]
+modId="slashblade_legacy_compat"
+version="${mod_version}"
+displayName="SEAC拔刀剑附属 旧梦重铸"
+displayURL="https://github.com/rianfalltwilight-lab/seac-slashblade-old-dream-reforged"
+authors="SEAC contributors; AI assistance: OpenAI Codex"
+description='''Unofficial SlashBlade: Resharpened add-on that rebuilds selected 1.12.2-era combat behavior for Minecraft 1.21.1. Development prerelease; not production accepted.'''
+[[dependencies.slashblade_legacy_compat]]
+modId="minecraft"
+type="required"
+versionRange="[1.21.1]"
+ordering="NONE"
+side="BOTH"
+[[dependencies.slashblade_legacy_compat]]
+modId="neoforge"
+type="required"
+versionRange="[21.1.248]"
+ordering="NONE"
+side="BOTH"
+[[dependencies.slashblade_legacy_compat]]
+modId="slashblade"
+type="required"
+versionRange="[2.0.5-1.21.1]"
+ordering="AFTER"
+side="BOTH"
