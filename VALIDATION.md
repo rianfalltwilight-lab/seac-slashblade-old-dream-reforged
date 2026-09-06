@@ -16,6 +16,8 @@ The release workflow rebuilds from the tagged public source, reruns the isolated
 - Minimal isolated NeoForge server contracts completed with `success: true` for broken damage/reach, wall and range authority, SB lifecycle, charge windows, hostile targeting, combo and movement rules, drive/additional attacks, projectile guard/upthrust, and sheathing repair.
 - A separate locked 246-mod server combination completed the same contracts with `success: true`, including the Gaia Guardian cases.
 - Resource validation confirmed all declared mixin classes exist and development contract classes are excluded from the runtime JAR.
+- The public Git-export candidate runtime JAR is 90,984 bytes with SHA-256 `167c19e3978577e0a2818191b182ed8e71ca3880bcfcb0aec06e3ffedd89f255`; two consecutive clean builds produced the same hash.
+- The corresponding sources JAR is 44,757 bytes with SHA-256 `e2ac30594a4d96bb3613208e158b06d47876887cb06325a9c6f4d28b3a2da8ec`.
 - The prior frozen internal candidate JAR was 89,592 bytes with SHA-256 `2e72c4e5caa15cd591a33d6e715121b8ac17140785820883552d28432fb0c025` before the public display-name and build-input changes.
 
 ## Not verified
