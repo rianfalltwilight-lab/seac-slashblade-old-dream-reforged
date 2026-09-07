@@ -20,7 +20,13 @@ repositories {
     }
 }
 
-sourceSets { contracts }
+sourceSets {
+    contracts { java { exclude 'org/scex/slashbladelegacy/contracts/LegacyPersistenceProbe.java' } }
+    persistenceProbe {
+        java { srcDir 'src/contracts/java'; include 'org/scex/slashbladelegacy/contracts/LegacyPersistenceProbe.java' }
+        resources.srcDir 'src/persistenceResources'
+    }
+}
 tasks.register('clientProbeJar', Jar) {
     archiveClassifier = 'client-probe'
     from(sourceSets.contracts.output) { exclude 'org/scex/slashbladelegacy/contracts/LegacyPersistenceProbe*.class' }
@@ -35,8 +41,7 @@ tasks.register('serverContractsJar', Jar) {
 }
 tasks.register('persistenceProbeJar', Jar) {
     archiveClassifier = 'persistence-probe-r1'
-    from(sourceSets.contracts.output) { include 'org/scex/slashbladelegacy/contracts/LegacyPersistenceProbe*.class' }
-    from 'src/persistenceResources'
+    from sourceSets.persistenceProbe.output
 }
 configurations {
     contractsImplementation.extendsFrom implementation
@@ -47,6 +52,8 @@ configurations {
         transitive = false
     }
 }
+sourceSets.persistenceProbe.compileClasspath += sourceSets.contracts.compileClasspath
+sourceSets.persistenceProbe.runtimeClasspath += sourceSets.contracts.runtimeClasspath
 sourceSets.contracts.compileClasspath += sourceSets.main.output
 sourceSets.contracts.runtimeClasspath += sourceSets.main.output
 neoForge {
