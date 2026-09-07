@@ -10,7 +10,7 @@ public enum LegacyMove {
     A_SLASH_EDGE(false,240,20,25), A_KIRIOROSI(false,200,-240,25),
     A_KIRIAGE(false,240,-70,12), A_KIRIOROSI_FINISH(false,200,-270,25),
     RAPID_SLASH(false,600,-380,12), RAPID_SLASH_END(false,240,20,12), RISING_STAR(false,250,-160,12),
-    HELM_BRAKER(false,200,-270,25), CALIBUR(false,600,-380,25),
+    HELM_BRAKER(false,200,-270,25), HELM_LANDING(false,200,-270,6), CALIBUR(false,600,-380,25),
     FORCE1(false,300,-230,25), FORCE2(false,250,-30,25), FORCE3(true,200,5,20),
     FORCE4(true,-200,5,20), FORCE5(false,240,0,12), FORCE6(false,200,-270,25),
     STINGER(false,180,180,20);

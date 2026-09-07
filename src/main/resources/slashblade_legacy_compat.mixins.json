@@ -16,10 +16,13 @@
     "LegacyReflectorMixin",
     "LegacySheathingRepairMixin",
     "LegacySlashVisualMixin",
-    "LegacyRankMixin"
+    "LegacyRankMixin",
+    "LegacyDriveKnockbackMixin",
+    "LegacyLandingMixin"
   ],
   "client": [
-    "LegacyBladePoseMixin"
+    "LegacyBladePoseMixin",
+    "LegacyVmdTimingMixin"
   ],
   "injectors": {
     "defaultRequire": 1

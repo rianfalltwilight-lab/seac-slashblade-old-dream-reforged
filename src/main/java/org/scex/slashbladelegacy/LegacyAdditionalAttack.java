@@ -50,7 +50,7 @@ public final class LegacyAdditionalAttack {
         float damage=state.getBaseAttackModifier();
         if(LegacyCombat.rank(player)>=5)damage+=state.getAttackAmplifier()*(.5f+power/5f);
         var drive=new LegacyDrive(SummonedBladeMode.DRIVE.get(),player.level());
-        drive.initialize(player,blade,damage,speed,90-(finisher?Math.abs(move.direction):move.direction),multi);
+        drive.initialize(player,blade,damage,speed,LegacyCombat.slashRoll(move),multi);
         player.level().addFreshEntity(drive);
     }
 }

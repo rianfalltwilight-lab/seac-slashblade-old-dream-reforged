@@ -11,7 +11,7 @@ public final class LegacyBladePose {
     private static float radians(float degrees){return (float)Math.toRadians(degrees);}
     public static float progress(LegacyMove move,float swing) {
         float value=Math.min(1,Math.max(0,swing)*1.2f);
-        return switch(move){case IAI,S_IAI -> 1-Math.abs(value-.5f)*2;case STINGER,HIRA_TUKI -> 1;default -> 1-(1-value)*(1-value);};
+        return switch(move){case IAI,S_IAI -> 1-Math.abs(value-.5f)*2;case STINGER,HIRA_TUKI,HELM_LANDING -> 1;default -> 1-(1-value)*(1-value);};
     }
     public static Matrix4f matrix(LegacyMove move,float progress,boolean sheath) {
         Matrix4f pose=new Matrix4f().translate(.25f,.4f,-.5f).scale(.075f)

@@ -27,7 +27,8 @@ public final class LegacyBodyAnimations {
             for(var move:LegacyMove.values())if(move!=LegacyMove.NONE) {
                 int start=LegacyCombat.animationStart(move);
                 var animation=constructor.newInstance(ResourceLocation.fromNamespaceAndPath("slashblade","model/pa/player_motion.vmd"),
-                        (double)start,(double)start+9,false);
+                        (double)start,(double)LegacyCombat.animationEnd(move),false);
+                ((LegacyAnimationTiming)animation).legacyCompat$duration(6);
                 if(move.aerial())type.getMethod("setBlendLegs",boolean.class).invoke(animation,false);
                 map.put(LegacyCombat.id(move),animation);count++;
             }

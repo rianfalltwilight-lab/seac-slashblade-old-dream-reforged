@@ -2,7 +2,7 @@ plugins {
     id 'java-library'
     id 'net.neoforged.moddev' version '2.0.144'
 }
-version = '0.1.0-dev.10'
+version = '0.1.0-dev.11'
 group = 'org.scex'
 base { archivesName = 'SEAC-SlashBlade-Old-Dream-Reforged-1.21.1' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
@@ -21,6 +21,10 @@ repositories {
 }
 
 sourceSets { contracts }
+tasks.register('clientProbeJar', Jar) {
+    archiveClassifier = 'client-probe'
+    from sourceSets.contracts.output
+}
 configurations {
     contractsImplementation.extendsFrom implementation
     contractsRuntimeOnly.extendsFrom runtimeOnly

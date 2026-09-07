@@ -30,6 +30,7 @@ import java.util.UUID;
 public final class Contracts {
     public Contracts() { NeoForge.EVENT_BUS.addListener(this::started); }
     private void started(ServerStartedEvent event) {
+        if(Boolean.getBoolean("scex.legacy.clientProbe"))return;
         var server = event.getServer();
         var report = new LinkedHashMap<String,Object>();
         try {
@@ -131,6 +132,7 @@ public final class Contracts {
             TauntContracts.run(player,report);
             RegressionContracts.run(player,report);
             SiContracts.run(player,report);
+            AnimationContracts.run(player,report);
             if(Boolean.getBoolean("scex.dev9Audit"))Dev9Audit.run(player,report);
             report.put("success",true);
         } catch (Throwable failure) {

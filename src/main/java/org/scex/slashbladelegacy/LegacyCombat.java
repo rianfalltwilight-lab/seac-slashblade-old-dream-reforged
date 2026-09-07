@@ -51,12 +51,14 @@ public final class LegacyCombat {
         return NONE;
     }
     private static ComboState build(LegacyMove move) {
-        // Existing body clips remain a fallback; the client blade/sheath pose uses original 1.12.2 matrices.
-        int start=animationStart(move);
+        // Paired blade-holder and body clips cover the whole original motion in six ticks.
+        int start=animationStart(move),end=animationEnd(move);
+        float speed=(end-start)/9f;
         int reset=move==NOUTOU?10:move.resetTicks; // Legacy sheathing schedules LastActionTime five ticks ahead.
-        var builder=ComboState.Builder.newInstance().startAndEnd(start,start+9).speed(1)
-                .timeout(reset*50-300).priority(50)
-                .next(user->id(NONE)).nextOfTimeout(user->id(move.scabbard || move==NOUTOU || move==IAI || move==S_IAI?NONE:NOUTOU))
+        int animationMillis=(int)(TimeValueHelper.getMSecFromFrames(end-start)/speed);
+        var builder=ComboState.Builder.newInstance().startAndEnd(start,end).speed(speed)
+                .timeout(reset*50-animationMillis).priority(50)
+                .next(user->id(NONE)).nextOfTimeout(user->id(move==HELM_BRAKER && user.onGround()?HELM_LANDING:move.scabbard || move==NOUTOU || move==IAI || move==S_IAI?NONE:NOUTOU))
                 .clickAction(user->attack(user,move)).addHitEffect((target,user)->impact(user,target,move))
                 .addHoldAction(user->hold(user,move,user.getTicksUsingItem()));
         if(move.aerial())builder.aerial();
@@ -68,7 +70,8 @@ public final class LegacyCombat {
             case NOUTOU -> 21;
             case SAYA2,FORCE2,FORCE4 -> 100;
             case FORCE3 -> 200;
-            case BATTOU,SLASH_EDGE,RETURN_EDGE,S_SLASH_EDGE,S_RETURN_EDGE,FORCE5 -> 200;
+            case BATTOU,SLASH_EDGE,S_SLASH_EDGE,FORCE5 -> 400;
+            case RETURN_EDGE,S_RETURN_EDGE -> 100;
             case HIRA_TUKI,STINGER -> 700;
             case S_SLASH_BLADE,FORCE6 -> 900;
             case A_SLASH_EDGE -> 1100;
@@ -77,12 +80,24 @@ public final class LegacyCombat {
             case A_KIRIOROSI_FINISH -> 1500;
             case KIRIAGE -> 1600;
             case KIRIOROSI,HELM_BRAKER -> 1800;
+            case HELM_LANDING -> 1816;
             case IAI,S_IAI -> 1900;
             case RAPID_SLASH,RAPID_SLASH_END,CALIBUR -> 2000;
             case RISING_STAR -> 2100;
             default -> 1;
         };
     }
+    /** Ends from the actual Resharpened player motion registrations, not start + nine frames. */
+    public static int animationEnd(LegacyMove move) {
+        return switch(animationStart(move)) {
+            case 1,21 -> 41; case 100 -> 151; case 200 -> 306; case 400 -> 488;
+            case 700 -> 787; case 900 -> 1061; case 1100 -> 1132; case 1200 -> 1241;
+            case 1300 -> 1338; case 1500 -> 1547; case 1600 -> 1693; case 1800 -> 1817;
+            case 1816 -> 1859; case 1900 -> 1963; case 2000 -> 2073; case 2100 -> 2147;
+            default -> throw new IllegalArgumentException("Unmapped animation: "+move);
+        };
+    }
+    public static float slashRoll(LegacyMove move) {return -move.direction;}
     public static int rank(LivingEntity user) {
         var rank=user.getData(CapabilityConcentrationRank.RANK_POINT).getRank(user.level().getGameTime());
         return rank==null?0:rank.level;
@@ -149,6 +164,7 @@ public final class LegacyCombat {
         return user.getBoundingBox().inflate(x,y,x).move(look.x*z,dy,look.z*z);
     }
     private static void attack(LivingEntity user,LegacyMove move) {
+        if(move==HELM_LANDING)return;
         LegacySheathingRepair.begin(user,move);
         if(move==NOUTOU){if(user instanceof Player player)LegacyUpthrust.blast(player,player.getMainHandItem());return;}
         if(move==NONE)return;
@@ -157,7 +173,7 @@ public final class LegacyCombat {
         if(user.level().isClientSide || !(user instanceof Player player))return;
         // Restore the public slash/SE pipeline removed by the immediate-melee implementation.
         // Only this returned arc is visual-only; effects spawned by SE listeners retain their damage.
-        var arc=AttackManager.doSlash(player,90-move.direction,true,false,move.scabbard?.44:1);
+        var arc=AttackManager.doSlash(player,slashRoll(move),true,false,move.scabbard?.44:1);
         if(arc==null)return; // Respect cancellation by SE/protection listeners.
         arc.getPersistentData().putBoolean("slashblade_legacy_compat.visual_arc",true);
         if(!holdingBlade(player,attackingBlade))return;
@@ -258,7 +274,12 @@ public final class LegacyCombat {
         var state=BladeStateAccess.of(motion.blade).orElse(null);
         if(state==null){MOTIONS.remove(player);return;}
         if((motion.move==HELM_BRAKER || motion.move==CALIBUR)
-                && (player.onGround() || player.isInWater() || player.isInLava())){MOTIONS.remove(player);return;}
+                && (player.onGround() || player.isInWater() || player.isInLava())){
+            MOTIONS.remove(player);
+            if(motion.move==HELM_BRAKER && move(state.getComboSeq())==HELM_BRAKER)
+                state.updateComboSeq(player,id(player.onGround()?HELM_LANDING:NOUTOU));
+            return;
+        }
         switch(motion.move) {
             case RAPID_SLASH -> {
                 if(age<=6 && age%3==0)damageArea(player,RAPID_SLASH,box(player,RAPID_SLASH),null);
@@ -268,7 +289,7 @@ public final class LegacyCombat {
                 if(age>=20 || move(state.getComboSeq())!=HELM_BRAKER){MOTIONS.remove(player);return;}
                 // A ServerPlayer's position is driven by client movement packets. Send downward
                 // velocity, not a server-only move followed by the previous (often upward) velocity.
-                if(age>1){player.setDeltaMovement(0,-1.5,0);player.fallDistance=0;}
+                player.setDeltaMovement(0,-1.5,0);player.fallDistance=0;
                 if(age%3==0)damageArea(player,HELM_BRAKER,box(player,HELM_BRAKER),null);
             }
             case CALIBUR -> {
@@ -304,7 +325,10 @@ public final class LegacyCombat {
         Vec3 velocity=user.getDeltaMovement();
         boolean used=user.getPersistentData().getBoolean(AIR_USED);
         switch(move) {
-            case HELM_BRAKER -> mods.flammpfeil.slashblade.ability.Untouchable.setUntouchable(user,6);
+            case HELM_BRAKER -> {
+                user.setDeltaMovement(0,-1.5,0);
+                mods.flammpfeil.slashblade.ability.Untouchable.setUntouchable(user,6);
+            }
             case RAPID_SLASH,CALIBUR -> {
                 var forward=Vec3.directionFromRotation(0,user.getYRot()).scale(2.5);
                 user.setDeltaMovement(forward.x,move==CALIBUR?0:velocity.y,forward.z);
