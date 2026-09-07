@@ -31,17 +31,22 @@ public final class Contracts {
     public Contracts() { NeoForge.EVENT_BUS.addListener(this::started); }
     private void started(ServerStartedEvent event) {
         if(Boolean.getBoolean("scex.legacy.clientProbe"))return;
-        var server = event.getServer();
+        ContractWorldReady.prepare(event.getServer(),preparation -> run(event.getServer(),preparation));
+    }
+    private void run(net.minecraft.server.MinecraftServer server,java.util.Map<String,Object> preparation) {
         var report = new LinkedHashMap<String,Object>();
+        report.put("fixture_preparation",preparation);
         try {
+            require(Boolean.TRUE.equals(preparation.get("ready")),"Fixture entity lifecycle not ready: "+preparation);
             var level = server.overworld();
             level.getChunk(0,0);
             for(int x=-2;x<=2;x++) for(int y=160;y<=163;y++)
                 level.setBlockAndUpdate(new net.minecraft.core.BlockPos(x,y,1),net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
-            var blade = server.registryAccess().lookupOrThrow(SlashBladeDefinition.REGISTRY_KEY)
-                    .listElements().filter(h -> h.key().location().getPath().equals("named/muramasa"))
-                    .findFirst().orElseGet(() -> server.registryAccess().lookupOrThrow(SlashBladeDefinition.REGISTRY_KEY)
-                            .listElements().findFirst().orElseThrow()).value().getBlade(server.registryAccess());
+            var definition = server.registryAccess().lookupOrThrow(SlashBladeDefinition.REGISTRY_KEY)
+                    .listElements().filter(h -> h.key().location().toString().equals("slashblade:sange"))
+                    .findFirst().orElseThrow();
+            report.put("baseline_blade_definition",definition.key().location().toString());
+            var blade=definition.value().getBlade(server.registryAccess());
             var state = BladeStateAccess.of(blade).orElseThrow();
             blade.set(DataComponents.ENCHANTMENTS, net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY);
             state.setBroken(false);
@@ -140,6 +145,7 @@ public final class Contracts {
             report.put("error",failure.toString());
             failure.printStackTrace();
         } finally {
+            ContractWorldReady.release();
             try { Files.writeString(Path.of("contracts.json"),new GsonBuilder().setPrettyPrinting().create().toJson(report)); }
             catch (Exception e) { throw new RuntimeException(e); }
             server.halt(false);

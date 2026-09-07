@@ -35,7 +35,7 @@ public final class LegacyClientProbe {
     private static final List<String> blades=new ArrayList<>();
     private static double startHeight;
     @SubscribeEvent public static void tick(ClientTickEvent.Post event) {
-        if(!Boolean.getBoolean("scex.legacy.clientProbe") || done)return;
+        if(!Boolean.getBoolean("scex.legacy.clientProbe") || Boolean.getBoolean("scex.legacy.viewProbe") || done)return;
         var mc=Minecraft.getInstance();
         try {
             if(started==0){

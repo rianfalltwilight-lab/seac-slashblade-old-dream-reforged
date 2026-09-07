@@ -21,6 +21,7 @@
     "LegacyLandingMixin"
   ],
   "client": [
+    "LegacyFirstPersonMixin",
     "LegacyBladePoseMixin",
     "LegacyVmdTimingMixin"
   ],

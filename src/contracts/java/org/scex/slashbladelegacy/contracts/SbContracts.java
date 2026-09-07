@@ -44,10 +44,20 @@ final class SbContracts {
         state=BladeStateAccess.of(blade).orElseThrow();
         var bounds=new AABB(-64,100,-64,64,220,64);
         for(var old:level.getEntitiesOfClass(LegacySummonedBlade.class,bounds)) old.discard();
+        report.put("sb_before_press",snapshot(player,blade,bounds));
         input(player,false,true);
         require(state.getProudSoulCount()==100,"Original single shot was not suppressed");
         require(level.getEntitiesOfClass(LegacySummonedBlade.class,bounds).isEmpty(),"SB fired before release");
-        input(player,true,false);
+        var joinEvents=new java.util.ArrayList<Map<String,Object>>();
+        java.util.function.Consumer<net.neoforged.neoforge.event.entity.EntityJoinLevelEvent> observer=e->{
+            if(e.getEntity() instanceof LegacySummonedBlade projectile)joinEvents.add(java.util.Map.of(
+                    "position",projectile.position().toString(),"canceled",e.isCanceled(),"removed",projectile.isRemoved(),
+                    "loaded_from_disk",e.loadedFromDisk(),"in_query_bounds",projectile.getBoundingBox().intersects(bounds)));
+        };
+        NeoForge.EVENT_BUS.addListener(net.neoforged.bus.api.EventPriority.LOWEST,true,observer);
+        try{input(player,true,false);}finally{NeoForge.EVENT_BUS.unregister(observer);}
+        report.put("sb_release_join_events",joinEvents);
+        report.put("sb_after_release",snapshot(player,player.getMainHandItem(),bounds));
         var shots=level.getEntitiesOfClass(LegacySummonedBlade.class,bounds);
         require(shots.size()==1 && state.getProudSoulCount()==99,"Single SB spawn/cost");
         input(player,true,false);
@@ -128,6 +138,19 @@ final class SbContracts {
         NeoForge.EVENT_BUS.post(new InputCommandEvent(player,state,before,after));
     }
     private static void require(boolean result,String message) { if(!result) throw new AssertionError(message); }
+    private static Map<String,Object> snapshot(ServerPlayer player,ItemStack blade,AABB bounds){
+        var state=BladeStateAccess.of(blade).orElseThrow();
+        var data=new java.util.LinkedHashMap<String,Object>();
+        data.put("blade_item",net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(blade.getItem()).toString());
+        data.put("blade_name",blade.getHoverName().getString());data.put("player_position",player.position().toString());
+        data.put("player_alive",player.isAlive());data.put("player_removed",player.isRemoved());data.put("game_time",player.level().getGameTime());
+        data.put("dimension",player.level().dimension().location().toString());data.put("broken",state.isBroken());data.put("sealed",state.isSealed());
+        data.put("enabled",SummonedBladeMode.enabled(blade));data.put("sword_types",mods.flammpfeil.slashblade.item.SwordType.from(blade).toString());
+        data.put("power",blade.getEnchantmentLevel(player.registryAccess().holderOrThrow(Enchantments.POWER)));
+        data.put("souls",state.getProudSoulCount());data.put("shots_in_bounds",player.level().getEntitiesOfClass(LegacySummonedBlade.class,bounds).size());
+        data.put("runtime_state",state.serializeNBT().toString());
+        return data;
+    }
     private static void testCharge(ServerPlayer player,ItemStack blade,Map<String,Object> report) {
         var state=BladeStateAccess.of(blade).orElseThrow();
         state.setBroken(false);state.setSealed(false);

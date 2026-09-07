@@ -2,7 +2,7 @@ plugins {
     id 'java-library'
     id 'net.neoforged.moddev' version '2.0.144'
 }
-version = '0.1.0-dev.11'
+version = '0.1.0-dev.12'
 group = 'org.scex'
 base { archivesName = 'SEAC-SlashBlade-Old-Dream-Reforged-1.21.1' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
@@ -23,7 +23,20 @@ repositories {
 sourceSets { contracts }
 tasks.register('clientProbeJar', Jar) {
     archiveClassifier = 'client-probe'
-    from sourceSets.contracts.output
+    from(sourceSets.contracts.output) { exclude 'org/scex/slashbladelegacy/contracts/LegacyPersistenceProbe*.class' }
+}
+tasks.register('serverContractsJar', Jar) {
+    archiveClassifier = 'server-contracts-r3'
+    from(sourceSets.contracts.output) {
+        exclude 'org/scex/slashbladelegacy/contracts/LegacyClientProbe*.class'
+        exclude 'org/scex/slashbladelegacy/contracts/LegacyViewProbe*.class'
+        exclude 'org/scex/slashbladelegacy/contracts/LegacyPersistenceProbe*.class'
+    }
+}
+tasks.register('persistenceProbeJar', Jar) {
+    archiveClassifier = 'persistence-probe-r1'
+    from(sourceSets.contracts.output) { include 'org/scex/slashbladelegacy/contracts/LegacyPersistenceProbe*.class' }
+    from 'src/persistenceResources'
 }
 configurations {
     contractsImplementation.extendsFrom implementation
