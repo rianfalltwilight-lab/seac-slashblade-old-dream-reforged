@@ -4,7 +4,7 @@
 
 [English](README_en.md)
 
-当前版本为 **0.1.0-dev.12**。这是开发预览版，尚未完成真实客户端手感、多人高延迟和生产整包验收，请先在备份世界中测试。
+当前版本为 **0.1.0-dev.13**。这是开发预览版，尚未完成真实客户端手感、多人高延迟和生产整包验收，请先在备份世界中测试。
 
 ## 兼容矩阵
 
@@ -13,7 +13,7 @@
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.248 |
 | SlashBlade: Resharpened | [2.0.5-1.21.1](https://modrinth.com/mod/slashblade-resharped/version/2.0.5-1.21.1) |
-| 本附属 | 0.1.0-dev.12 |
+| 本附属 | 0.1.0-dev.13 |
 | Java | 21 |
 
 客户端和服务端必须安装同一版本。`modId` 继续使用 `slashblade_legacy_compat`，正式名称变更不会改动已有注册身份。
@@ -54,6 +54,6 @@ SEAC 独立实现部分以 [MIT License](LICENSE) 发布。源自旧版 SlashBla
 OpenAI Codex 实质参与了分析、实现辅助、测试、公开源码审计、文档与发布准备，完整边界见 [AI-GENERATED.md](AI-GENERATED.md)。
 
 
-## dev.12
+## dev.13
 
-[Release notes / 累计更新与验收边界](docs/releases/0.1.0-dev.12.md)
+[Release notes / 累计更新与验收边界](docs/releases/0.1.0-dev.13.md)

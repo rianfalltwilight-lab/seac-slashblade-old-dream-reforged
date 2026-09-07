@@ -4,7 +4,7 @@
 
 [简体中文](README.md)
 
-The current version is **0.1.0-dev.12**. It is a development prerelease. Real-client feel, high-latency multiplayer, and production-pack acceptance remain incomplete, so test it against a backed-up world first.
+The current version is **0.1.0-dev.13**. It is a development prerelease. Real-client feel, high-latency multiplayer, and production-pack acceptance remain incomplete, so test it against a backed-up world first.
 
 ## Compatibility matrix
 
@@ -13,7 +13,7 @@ The current version is **0.1.0-dev.12**. It is a development prerelease. Real-cl
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.248 |
 | SlashBlade: Resharpened | [2.0.5-1.21.1](https://modrinth.com/mod/slashblade-resharped/version/2.0.5-1.21.1) |
-| This add-on | 0.1.0-dev.12 |
+| This add-on | 0.1.0-dev.13 |
 | Java | 21 |
 
 Install the same add-on version on both client and server. The stable `slashblade_legacy_compat` mod ID is retained; the new formal display name does not change registry identity.
@@ -54,6 +54,6 @@ SEAC's independent implementation is released under the [MIT License](LICENSE). 
 OpenAI Codex materially assisted analysis, implementation support, testing, public-source audit, documentation, and release preparation. See [AI-GENERATED.md](AI-GENERATED.md) for the exact boundary.
 
 
-## dev.12
+## dev.13
 
-[Release notes / 累计更新与验收边界](docs/releases/0.1.0-dev.12.md)
+[Release notes / 累计更新与验收边界](docs/releases/0.1.0-dev.13.md)

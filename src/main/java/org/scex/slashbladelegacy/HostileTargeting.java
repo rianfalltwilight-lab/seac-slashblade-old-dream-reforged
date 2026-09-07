@@ -16,8 +16,8 @@ public final class HostileTargeting {
     private HostileTargeting() {}
     public static boolean isAdditionalHostile(LivingEntity target) {
         if(GAIA.equals(BuiltInRegistries.ENTITY_TYPE.getKey(target.getType())))
-            return LegacyCompat.GAIA_TARGETING.get();
-        return LegacyCompat.HOSTILE_TARGETING.get() && target.getType().is(ADDITIONAL)
+            return LegacyCompat.isEnabled(LegacyCompat.GAIA_TARGETING);
+        return LegacyCompat.isEnabled(LegacyCompat.HOSTILE_TARGETING) && target.getType().is(ADDITIONAL)
                 && !(target instanceof OwnableEntity ownable && ownable.getOwnerUUID()!=null);
     }
 }

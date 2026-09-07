@@ -16,7 +16,7 @@ import net.minecraft.world.phys.*;
 public final class LegacyProjectileGuard {
     private LegacyProjectileGuard(){}
     public static boolean handles(LivingEntity user) {
-        return user instanceof Player && LegacyCompat.LEGACY_COMBAT.get() && BladeStateAccess.of(user.getMainHandItem())
+        return user instanceof Player && LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && BladeStateAccess.of(user.getMainHandItem())
                 .map(s->s.getComboRoot().equals(ComboStateRegistry.STANDBY.getId()) &&
                         (s.getComboSeq().getNamespace().equals(LegacyCompat.MOD_ID) || s.getComboSeq().equals(ComboStateRegistry.NONE.getId()))).orElse(false);
     }

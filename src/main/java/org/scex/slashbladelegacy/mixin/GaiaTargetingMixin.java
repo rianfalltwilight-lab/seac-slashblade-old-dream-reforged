@@ -17,7 +17,7 @@ public abstract class GaiaTargetingMixin {
     @ModifyExpressionValue(method="test(Lnet/minecraft/world/entity/LivingEntity;)Z",
             at=@At(value="INVOKE",target="Ljava/util/Set;contains(Ljava/lang/Object;)Z"),require=1)
     private boolean legacyCompat$scopedRevenge(boolean original,LivingEntity target) {
-        return LegacyCompat.HOSTILE_TARGETING.get()?org.scex.slashbladelegacy.HostileTargeting.REVENGE_CONTEXT.get()==target:original;
+        return LegacyCompat.isEnabled(LegacyCompat.HOSTILE_TARGETING)?org.scex.slashbladelegacy.HostileTargeting.REVENGE_CONTEXT.get()==target:original;
     }
     @ModifyExpressionValue(method="test(Lnet/minecraft/world/entity/LivingEntity;)Z",
             at=@At(value="INVOKE", target="Lnet/neoforged/neoforge/common/ModConfigSpec$BooleanValue;get()Ljava/lang/Object;", ordinal=1),

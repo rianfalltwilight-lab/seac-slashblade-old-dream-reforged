@@ -34,8 +34,11 @@ public final class LegacyClientProbe {
     private static final Map<String,Object> results=new LinkedHashMap<>();
     private static final List<String> blades=new ArrayList<>();
     private static double startHeight;
+    private static final boolean CLOCK_AWARE=Boolean.getBoolean("scex.legacy.clockAwareProbe");
+    private static long inputNs,airStartNs,groundNs;
+    private static boolean sampled,airObserved;
     @SubscribeEvent public static void tick(ClientTickEvent.Post event) {
-        if(!Boolean.getBoolean("scex.legacy.clientProbe") || Boolean.getBoolean("scex.legacy.viewProbe") || done)return;
+        if(!Boolean.getBoolean("scex.legacy.clientProbe") || Boolean.getBoolean("scex.legacy.viewProbe") || Boolean.getBoolean("scex.legacy.lifecycleProbe") || done)return;
         var mc=Minecraft.getInstance();
         try {
             if(started==0){
@@ -70,13 +73,13 @@ public final class LegacyClientProbe {
                 ticks=0;phase=5;mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_FRONT);
             }else if(phase==5){
                 ticks++;
-                if(ticks==1){mc.gameMode.useItem(mc.player,InteractionHand.MAIN_HAND);}
+                if(ticks==1){inputNs=System.nanoTime();sampled=false;mc.gameMode.useItem(mc.player,InteractionHand.MAIN_HAND);}
                 if(ticks==2)mc.gameMode.releaseUsingItem(mc.player);
-                if(ticks==4){
+                if(captureClick(mc)){
                     var state=BladeStateAccess.of(mc.player.getMainHandItem()).orElseThrow();
                     chain.add(state.getComboSeq().toString());capture="blade-"+bladeIndex+"-click-"+click+".png";
                 }
-                if(ticks>=8){
+                if(advanceClick()){
                     ticks=0;click++;
                     if(click==3){
                         results.put(blades.get(bladeIndex),List.copyOf(chain));
@@ -89,37 +92,47 @@ public final class LegacyClientProbe {
                     }
                 }
             }else if(phase==7){
-                phase=8;ticks=0;prepared=false;
+                phase=8;ticks=0;prepared=false;airObserved=false;airStartNs=System.nanoTime();LegacyTimingTrace.resetLanding();
                 mc.getSingleplayerServer().execute(()->{
                     try{var p=mc.getSingleplayerServer().getPlayerList().getPlayers().getFirst();p.teleportTo(p.serverLevel(),12,79,12,0,0);p.setOnGround(false);
                         BladeStateAccess.of(p.getMainHandItem()).orElseThrow().updateComboSeq(p,LegacyCombat.id(LegacyMove.HELM_BRAKER));prepared=true;
                     }catch(Throwable e){failure=e;}
                 });
             }else if(phase==8 && prepared){
+                if(CLOCK_AWARE && !airObserved){
+                    if(!mc.player.onGround() && mc.player.getY()>71 && LegacyCombat.move(BladeStateAccess.of(mc.player.getMainHandItem()).orElseThrow().getComboSeq())==LegacyMove.HELM_BRAKER)airObserved=true;
+                    else {require(System.nanoTime()-airStartNs<1_000_000_000L,"Client did not receive airborne fixture");return;}
+                }
                 ticks++;if(ticks==1)startHeight=mc.player.getY();
                 if(ticks==3)capture="03-helm-descent.png";
                 if(ticks>3 && mc.player.onGround()){
                     results.put("helm_client_landing_ticks",ticks);results.put("helm_height",mc.player.getY());
                     require(ticks<=10 && Math.abs(mc.player.getY()-71)<.01,"Slow/missed physical landing: "+ticks+" "+mc.player.getY());
-                    phase=9;ticks=0;
+                    phase=9;ticks=0;groundNs=System.nanoTime();
                 }
                 if(ticks>20)throw new IllegalStateException("Helm did not land from eight blocks");
             }else if(phase==9 && ++ticks>=2){
                 var move=LegacyCombat.move(BladeStateAccess.of(mc.player.getMainHandItem()).orElseThrow().getComboSeq());
+                if(CLOCK_AWARE && (move!=LegacyMove.HELM_LANDING || LegacyTimingTrace.serverLanding().isEmpty())){
+                    require(System.nanoTime()-groundNs<1_000_000_000L,"Authoritative landing/client packet missing");return;
+                }
                 require(move!=LegacyMove.HELM_BRAKER,"Air animation remained after landing");
+                if(CLOCK_AWARE){results.put("landing_ack_ms",(System.nanoTime()-groundNs)/1e6);results.put("server_landing",LegacyTimingTrace.serverLanding());}
                 results.put("landing_combo",move.toString());capture="04-landing.png";phase=10;
             }else if(phase==11){
                 phase=12;ticks=0;click=0;chain.clear();mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
             }else if(phase==12){
                 ticks++;
-                if(ticks==1)mc.gameMode.useItem(mc.player,InteractionHand.MAIN_HAND);
+                if(ticks==1){inputNs=System.nanoTime();sampled=false;mc.gameMode.useItem(mc.player,InteractionHand.MAIN_HAND);}
                 if(ticks==2)mc.gameMode.releaseUsingItem(mc.player);
-                if(ticks==4){chain.add(BladeStateAccess.of(mc.player.getMainHandItem()).orElseThrow().getComboSeq().toString());capture="first-person-click-"+click+".png";}
-                if(ticks>=8){ticks=0;if(++click==3){
+                if(captureClick(mc)){chain.add(BladeStateAccess.of(mc.player.getMainHandItem()).orElseThrow().getComboSeq().toString());capture="first-person-click-"+click+".png";}
+                if(advanceClick()){ticks=0;if(++click==3){
                     require(new HashSet<>(chain).size()==3,"First-person repeated one combo: "+chain);
                     results.put("first_person_right_chain",List.copyOf(chain));phase=13;
                 }}
             }else if(phase==13){
+                results.put("original_assertion_failures",LegacyTimingTrace.failures());
+                results.put("clock_aware_input_and_ack",CLOCK_AWARE);
                 Files.writeString(out.resolve("checks.json"),new GsonBuilder().setPrettyPrinting().create().toJson(results));
                 var missing=new ArrayList<String>();
                 for(var id:blades){var h=mc.level.registryAccess().lookupOrThrow(SlashBladeDefinition.REGISTRY_KEY).listElements().filter(x->x.key().location().toString().equals(id)).findFirst().orElseThrow();
@@ -129,6 +142,7 @@ public final class LegacyClientProbe {
                 Files.writeString(out.resolve("item-model-audit.json"),new GsonBuilder().create().toJson(Map.of("registeredItems",blades,"missingItemModels",missing)));
                 require(missing.isEmpty(),"Missing blade models: "+missing);
                 Files.writeString(out.resolve("result.json"),"{\"status\":\"captured\",\"screenshots\":4,\"checks_passed\":true,\"entry\":\"MultiPlayerGameMode.useItem packets and integrated server\"}");
+                if(!LegacyTimingTrace.failures().isEmpty())Files.writeString(out.resolve("result.json"),new GsonBuilder().create().toJson(Map.of("status","diagnostic_failure","screenshots",4,"checks_passed",false,"original_assertion_failures",LegacyTimingTrace.failures())));
                 done=true;mc.stop();
             }
         }catch(Throwable e){done=true;com.mojang.logging.LogUtils.getLogger().error("SLASHBLADE_CLIENT_VERIFICATION_FAILED",e);try{Files.writeString(out.resolve("failure.txt"),e.toString());Files.writeString(out.resolve("checks.json"),new GsonBuilder().create().toJson(results));}catch(Exception ignored){}mc.stop();}
@@ -139,10 +153,21 @@ public final class LegacyClientProbe {
         var blade=h.value().getBlade(s.registryAccess());var state=BladeStateAccess.of(blade).orElseThrow();state.setComboSeq(mods.flammpfeil.slashblade.registry.ComboStateRegistry.NONE.getId());
         p.setItemInHand(InteractionHand.MAIN_HAND,blade);p.setItemInHand(InteractionHand.OFF_HAND,net.minecraft.world.item.ItemStack.EMPTY);p.experienceLevel=0;p.inventoryMenu.broadcastChanges();
     }
+    private static boolean captureClick(Minecraft mc){
+        if(!CLOCK_AWARE)return ticks==4;
+        if(ticks<4 || sampled)return false;
+        var expected=LegacyCombat.id(new LegacyMove[]{LegacyMove.SAYA1,LegacyMove.SAYA2,LegacyMove.BATTOU}[click]).toString();
+        var state=BladeStateAccess.of(mc.player.getMainHandItem()).orElseThrow();var server=LegacyTimingTrace.serverSnapshot();
+        if(state.getComboSeq().toString().equals(expected) && expected.equals(server.get("combo"))
+                && Objects.equals(state.getLastActionTime(),server.get("action_tick"))){sampled=true;return true;}
+        require(System.nanoTime()-inputNs<1_000_000_000L,"Expected server/client committed combo "+expected+", client="+state.getComboSeq()+", server="+server);
+        return false;
+    }
+    private static boolean advanceClick(){return ticks>=8 && (!CLOCK_AWARE || sampled && System.nanoTime()-inputNs>=400_000_000L);}
     @SubscribeEvent public static void frame(RenderFrameEvent.Post event){
         if(capture==null || done)return;
         try(var img=Screenshot.takeScreenshot(Minecraft.getInstance().getMainRenderTarget())){img.writeToFile(out.resolve(capture));capture=null;if(phase==1 || phase==6 || phase==10)phase++;}
         catch(Exception e){failure=e;}
     }
-    private static void require(boolean v,String m){if(!v)throw new IllegalStateException(m);}
+    private static void require(boolean v,String m){if(!v && !LegacyTimingTrace.observeFailure(m))throw new IllegalStateException(m);}
 }

@@ -130,7 +130,7 @@ public final class LegacyCombat {
         };
     }
     public static void nextCombo(SlashBladeEvent.NextComboEvent event) {
-        if(!LegacyCompat.LEGACY_COMBAT.get() || !(event.getUser() instanceof Player player))return;
+        if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !(event.getUser() instanceof Player player))return;
         var state=event.getSlashBladeState();
         // Custom addon combo roots retain their own move sets, until explicitly mapped and verified.
         if(!state.getComboRoot().equals(ComboStateRegistry.STANDBY.getId()))return;
@@ -251,7 +251,7 @@ public final class LegacyCombat {
         } else blade.hurtEnemy(target,player);
     }
     public static void hold(LivingEntity user,LegacyMove move,int elapsed) {
-        if(!LegacyCompat.LEGACY_COMBAT.get() || !(user instanceof Player player) || !player.onGround())return;
+        if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !(user instanceof Player player) || !player.onGround())return;
         if((move==KIRIAGE && elapsed==3) || (move==RAPID_SLASH && elapsed==7)) {
             player.jumpFromGround();player.setDeltaMovement(player.getDeltaMovement().add(0,.2,0));player.setOnGround(false);
             player.hurtMarked=true;
@@ -266,7 +266,7 @@ public final class LegacyCombat {
     public static void tickMotion(Player player,long now) {
         Motion motion=MOTIONS.get(player);
         if(motion==null)return;
-        if(!LegacyCompat.LEGACY_COMBAT.get() || !player.isAlive() || motion.blade.isEmpty() || player.getMainHandItem()!=motion.blade
+        if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !player.isAlive() || motion.blade.isEmpty() || player.getMainHandItem()!=motion.blade
                 || !player.level().dimension().equals(motion.dimension)){MOTIONS.remove(player);return;}
         long age=now-motion.start;
         if(age<=0 || age<=motion.processed)return;

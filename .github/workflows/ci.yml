@@ -32,8 +32,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          runtime='build/libs/SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-0.1.0-dev.12.jar'
-          sources='build/libs/SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-0.1.0-dev.12-sources.jar'
+          runtime='build/libs/SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-0.1.0-dev.13.jar'
+          sources='build/libs/SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-0.1.0-dev.13-sources.jar'
           test -f "${runtime}"
           echo '188dceab1b5b9be77c8e6e4427b41fba1dff81cac1c5e87163202a15ee5ad18b  '"${runtime}" | sha256sum -c -
           echo '213b7ffa6f9da07fe6a8339242ceff7d605c4eb12c59fd51426d2c037fe33b6d  '"${sources}" | sha256sum -c -

@@ -21,7 +21,7 @@ public interface LegacyInputBudgetMixin {
     @Inject(method="progressCombo(Lnet/minecraft/world/entity/LivingEntity;Z)Lnet/minecraft/resources/ResourceLocation;",
             at=@At("HEAD"),cancellable=true)
     private void legacyCompat$budget(LivingEntity user,boolean virtual,CallbackInfoReturnable<ResourceLocation> result) {
-        if(virtual || !LegacyCompat.LEGACY_COMBAT.get() || !(user instanceof ServerPlayer player))return;
+        if(virtual || !LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !(user instanceof ServerPlayer player))return;
         var blade=player.getMainHandItem();var state=(ISlashBladeState)(Object)this;
         if(BladeStateAccess.of(blade).isEmpty() || !state.getComboRoot().equals(ComboStateRegistry.STANDBY.getId())
                 || SwordType.from(blade).contains(SwordType.NOSCABBARD))return;

@@ -12,6 +12,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class LegacyJustWindowMixin {
     @Inject(method="getJustReceptionSpan(Lnet/minecraft/world/entity/LivingEntity;)I",at=@At("RETURN"),cancellable=true,require=1)
     private static void legacyJustSpan(LivingEntity user,CallbackInfoReturnable<Integer> result) {
-        if(LegacyCompat.LEGACY_CHARGE.get()) result.setReturnValue(4);
+        if(LegacyCompat.isEnabled(LegacyCompat.LEGACY_CHARGE)) result.setReturnValue(4);
     }
 }

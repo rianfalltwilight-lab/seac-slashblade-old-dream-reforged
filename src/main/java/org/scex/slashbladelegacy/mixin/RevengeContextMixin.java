@@ -20,7 +20,7 @@ public abstract class RevengeContextMixin {
     @Redirect(method="test(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/LivingEntity;)Z",
             at=@At(value="INVOKE",target="Lnet/minecraft/world/entity/LivingEntity;addTag(Ljava/lang/String;)Z"))
     private boolean legacyCompat$noPersistentRevengeTag(LivingEntity target,String tag) {
-        if(!LegacyCompat.HOSTILE_TARGETING.get())return target.addTag(tag);
+        if(!LegacyCompat.isEnabled(LegacyCompat.HOSTILE_TARGETING))return target.addTag(tag);
         HostileTargeting.REVENGE_CONTEXT.set(target);return true;
     }
 }

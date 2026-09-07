@@ -19,11 +19,11 @@ public interface LegacyChargeMixin {
     }
     @Inject(method="getFullChargeTicks(Lnet/minecraft/world/entity/LivingEntity;)I",at=@At("RETURN"),cancellable=true,require=1)
     private void legacyCue(LivingEntity user,CallbackInfoReturnable<Integer> result) {
-        if(LegacyCompat.LEGACY_CHARGE.get() && result.getReturnValueI()==9) result.setReturnValue(15);
+        if(LegacyCompat.isEnabled(LegacyCompat.LEGACY_CHARGE) && result.getReturnValueI()==9) result.setReturnValue(15);
     }
     @Inject(method="doChargeAction(Lnet/minecraft/world/entity/LivingEntity;I)Lnet/minecraft/resources/ResourceLocation;",
             at=@At("HEAD"),cancellable=true,require=1)
     private void legacyMinimum(LivingEntity user,int elapsed,CallbackInfoReturnable<ResourceLocation> result) {
-        if(LegacyCompat.LEGACY_CHARGE.get() && elapsed<=15) result.setReturnValue(ComboStateRegistry.NONE.getId());
+        if(LegacyCompat.isEnabled(LegacyCompat.LEGACY_CHARGE) && elapsed<=15) result.setReturnValue(ComboStateRegistry.NONE.getId());
     }
 }

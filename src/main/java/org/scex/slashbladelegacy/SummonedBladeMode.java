@@ -44,11 +44,11 @@ public final class SummonedBladeMode {
     private static final WeakHashMap<ServerPlayer,Press> PRESSES=new WeakHashMap<>();
     private static final WeakHashMap<ServerPlayer,Long> LAST_SHOT=new WeakHashMap<>();
     public static boolean enabled(ItemStack stack) {
-        return LegacyCompat.SUMMONED_BLADE.get() && BladeStateAccess.of(stack).isPresent()
+        return LegacyCompat.isEnabled(LegacyCompat.SUMMONED_BLADE) && BladeStateAccess.of(stack).isPresent()
                 && stack.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag().getBoolean(MODE);
     }
     public static void interact(PlayerInteractEvent.EntityInteract event) {
-        if (!LegacyCompat.SUMMONED_BLADE.get() || event.getHand()!=InteractionHand.MAIN_HAND
+        if (!LegacyCompat.isEnabled(LegacyCompat.SUMMONED_BLADE) || event.getHand()!=InteractionHand.MAIN_HAND
                 || !(event.getTarget() instanceof BladeStandEntity stand)) return;
         var soul=event.getItemStack();
         var data=soul.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag();
@@ -74,7 +74,7 @@ public final class SummonedBladeMode {
         if (enabled(event.getItemStack())) event.getToolTip().add(Component.translatable("slashblade_legacy_compat.sb.blade"));
     }
     public static void attackStand(mods.flammpfeil.slashblade.event.SlashBladeEvent.BladeStandAttackEvent event) {
-        if(!LegacyCompat.SUMMONED_BLADE.get() || !(event.getDamageSource().getEntity() instanceof ServerPlayer player)
+        if(!LegacyCompat.isEnabled(LegacyCompat.SUMMONED_BLADE) || !(event.getDamageSource().getEntity() instanceof ServerPlayer player)
                 || event.getDamageSource().getDirectEntity()!=player)return;
         // Resharpened's soul-on-stand operations are LEFT-click attacks, not EntityInteract.
         var stand=event.getBladeStand();

@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class LegacyLeftClickMixin {
     @Inject(method="onLeftClickEntity",at=@At("HEAD"),cancellable=true)
     private void legacyCompat$leftHitWindow(ItemStack stack,Player player,Entity entity,CallbackInfoReturnable<Boolean> cir) {
-        if(!LegacyCompat.LEGACY_COMBAT.get() || !(entity instanceof LivingEntity target))return;
+        if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !(entity instanceof LivingEntity target))return;
         var state=BladeStateAccess.of(stack).orElse(null);
         if(state==null || state.onClick() || !state.getComboRoot().equals(ComboStateRegistry.STANDBY.getId()))return;
         if(target.hurtDuration!=0 && target.hurtDuration-target.hurtTime<6)cir.setReturnValue(true);

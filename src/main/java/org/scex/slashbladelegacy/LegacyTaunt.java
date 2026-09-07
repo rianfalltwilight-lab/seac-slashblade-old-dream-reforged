@@ -22,7 +22,7 @@ public final class LegacyTaunt {
     private static final String LEVEL="slashblade_legacy_compat.taunt_level";
     private LegacyTaunt(){}
     public static boolean handles(ItemStack blade) {
-        return LegacyCompat.LEGACY_COMBAT.get() && LegacyCompat.LEGACY_TAUNT.get() && blade.getItem() instanceof ItemSlashBlade
+        return LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && LegacyCompat.isEnabled(LegacyCompat.LEGACY_TAUNT) && blade.getItem() instanceof ItemSlashBlade
                 && BladeStateAccess.of(blade).map(s->s.getComboRoot().equals(ComboStateRegistry.STANDBY.getId())).orElse(false)
                 && !SwordType.from(blade).contains(SwordType.NOSCABBARD);
     }
@@ -55,7 +55,7 @@ public final class LegacyTaunt {
         }
     }
     public static void experience(LivingExperienceDropEvent event) {
-        if(!LegacyCompat.LEGACY_TAUNT.get())return;
+        if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_TAUNT))return;
         int taunt=Math.clamp(event.getEntity().getPersistentData().getInt(LEVEL),0,5);
         if(taunt>0)event.setDroppedExperience((int)Math.min(Integer.MAX_VALUE,(long)Math.max(0,event.getDroppedExperience())+taunt*5L));
     }

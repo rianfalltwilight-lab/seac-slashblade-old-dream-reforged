@@ -27,7 +27,7 @@ public final class LegacySheathingRepair {
     }
     private LegacySheathingRepair() {}
     public static boolean handles(ItemStack blade) {
-        return LegacyCompat.LEGACY_COMBAT.get() && LegacyCompat.SHEATHING_REPAIR.get()
+        return LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && LegacyCompat.isEnabled(LegacyCompat.SHEATHING_REPAIR)
                 && blade.getItem() instanceof ItemSlashBlade && BladeStateAccess.of(blade)
                 .map(s->s.getComboRoot().equals(ComboStateRegistry.STANDBY.getId())).orElse(false);
     }

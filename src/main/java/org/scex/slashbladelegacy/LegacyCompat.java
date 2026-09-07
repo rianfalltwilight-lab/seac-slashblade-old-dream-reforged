@@ -47,6 +47,17 @@ public final class LegacyCompat {
         LEGACY_TAUNT=builder.comment("Completed stationary sheathing taunts visible hostile mobs within legacy 10/5/10 expansion; 30s Strength II, Speed II, Resistance I, particles, sound and rank.").define("restoreLegacyTaunt",true);
         SPEC = builder.build();
     }
+    /** Item/search callbacks also run between worlds, after SERVER config has been unloaded. */
+    public static boolean isEnabled(ModConfigSpec.BooleanValue option) {
+        if (!SPEC.isLoaded()) return false;
+        try {
+            return option.get();
+        } catch (IllegalStateException unavailable) {
+            // Unload may race a client callback. Never hide an error while the config is loaded.
+            if (!SPEC.isLoaded()) return false;
+            throw unavailable;
+        }
+    }
     public LegacyCompat(net.neoforged.bus.api.IEventBus modBus, ModContainer container) {
         // SERVER configs synchronize to clients. Restart/re-equip after changing this development config.
         container.registerConfig(ModConfig.Type.SERVER, SPEC);
@@ -77,7 +88,7 @@ public final class LegacyCompat {
             event.setCanceled(true);
     }
     private static void damage(SlashBladeEvent.UpdateAttackEvent event) {
-        if (!BROKEN_DAMAGE.get() || !(event.getBlade().getItem() instanceof ItemSlashBlade)
+        if (!isEnabled(BROKEN_DAMAGE) || !(event.getBlade().getItem() instanceof ItemSlashBlade)
                 || !event.getSlashBladeState().isBroken()) return;
         // Exact current formula gate; leave overrides from other mods untouched.
         // Old updateAttackAmplifier: (2 - base) + base = +2, i.e. player total 3.
@@ -88,7 +99,7 @@ public final class LegacyCompat {
     }
     private static void reach(ItemAttributeModifierEvent event) {
         var stack = event.getItemStack();
-        if (!BROKEN_REACH.get() || !(stack.getItem() instanceof ItemSlashBlade)
+        if (!isEnabled(BROKEN_REACH) || !(stack.getItem() instanceof ItemSlashBlade)
                 || !stack.getOrDefault(DataComponents.ATTRIBUTE_MODIFIERS,
                     net.minecraft.world.item.component.ItemAttributeModifiers.EMPTY).modifiers().isEmpty()
                 || !BladeStateAccess.of(stack).map(s -> s.isBroken()).orElse(false)) return;

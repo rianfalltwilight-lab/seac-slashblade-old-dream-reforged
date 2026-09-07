@@ -20,7 +20,7 @@ public abstract class TargetingCopyMixin {
     @Shadow private Predicate<LivingEntity> selector;
     @Inject(method="copy",at=@At("RETURN"),cancellable=true)
     private void legacyCompat$copyAttackerRules(CallbackInfoReturnable<TargetingConditions> cir) {
-        if(!((Object)this instanceof TargetSelector.SlashBladeTargetingConditions) || !LegacyCompat.HOSTILE_TARGETING.get())return;
+        if(!((Object)this instanceof TargetSelector.SlashBladeTargetingConditions) || !LegacyCompat.isEnabled(LegacyCompat.HOSTILE_TARGETING))return;
         TargetingConditions result=new TargetSelector.SlashBladeTargetingConditions().range(range).selector(selector);
         if(!checkLineOfSight)result.ignoreLineOfSight();
         if(!testInvisible)result.ignoreInvisibilityTesting();

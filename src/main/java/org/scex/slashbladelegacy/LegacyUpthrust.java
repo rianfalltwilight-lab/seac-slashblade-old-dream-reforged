@@ -53,7 +53,7 @@ public final class LegacyUpthrust extends EntityAbstractSummonedSword {
     @Override public void tick() {
         baseTick();age++;var target=target();
         if(!level().isClientSide) {
-            if(!LegacyCompat.LEGACY_COMBAT.get() || target==null || !target.isAlive() || !(getOwner() instanceof Player player)
+            if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || target==null || !target.isAlive() || !(getOwner() instanceof Player player)
                     || !player.isAlive() || player.level()!=level() || distanceToSqr(player)>4096 || source(player).isEmpty()){discard();return;}
             entityData.set(TARGET,target.getId());
             if(age>=200){detonate(player,source(player),1,false);return;}

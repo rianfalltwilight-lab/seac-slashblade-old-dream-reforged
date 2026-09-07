@@ -41,7 +41,7 @@ if ($unexpectedJars.Count) { throw 'Third-party or build JAR present in public s
 
 $sourceFiles = @(Get-ChildItem -LiteralPath (Join-Path $root 'src') -Recurse -File)
 $javaFiles = @($sourceFiles | Where-Object Extension -eq '.java')
-if ($sourceFiles.Count -ne 62 -or $javaFiles.Count -ne 55) {
+if ($sourceFiles.Count -ne 64 -or $javaFiles.Count -ne 57) {
     throw "Unexpected source inventory: $($sourceFiles.Count) files / $($javaFiles.Count) Java"
 }
 

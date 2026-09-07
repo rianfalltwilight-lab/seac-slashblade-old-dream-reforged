@@ -53,7 +53,7 @@ public final class LegacyDrive extends EntityDrive {
         // Do not call EntityDrive.tick: its inherited projectile path multiplies damage by current attack attributes.
         baseTick();age++;
         if(!level().isClientSide) {
-            if(!LegacyCompat.LEGACY_COMBAT.get() || !(getOwner() instanceof Player player) || !player.isAlive()
+            if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !(getOwner() instanceof Player player) || !player.isAlive()
                     || player.level()!=level() || distanceToSqr(player)>4096){discard();return;}
             ItemStack blade=blade(player);if(blade.isEmpty()){discard();return;}
             if(!level().noCollision(this,getBoundingBox())){discard();return;}

@@ -20,7 +20,7 @@ public abstract class LegacyBladePoseMixin {
         var current=state.peekCurrentComboStateTicks(entity).getValue();
         var move=LegacyCombat.move(current);
         double speed=1;
-        if(LegacyCompat.LEGACY_COMBAT.get() && move!=LegacyMove.NONE && state.getComboRoot().equals(ComboStateRegistry.STANDBY.getId()))
+        if(LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && move!=LegacyMove.NONE && state.getComboRoot().equals(ComboStateRegistry.STANDBY.getId()))
             speed=ComboStateRegistry.REGISTRY.get(current).getSpeed();
         return TimeValueHelper.getMSecFromTicks(ticks*speed);
     }

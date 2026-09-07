@@ -12,7 +12,7 @@ public final class LegacyAdditionalAttack {
     private static final String CHARGED="scex_legacy_charged";
     private LegacyAdditionalAttack(){}
     public static void markCharged(net.minecraft.world.entity.LivingEntity user,net.minecraft.resources.ResourceLocation result) {
-        if(!LegacyCompat.LEGACY_COMBAT.get() || result==null || result.equals(ComboStateRegistry.NONE.getId()))return;
+        if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || result==null || result.equals(ComboStateRegistry.NONE.getId()))return;
         var blade=user.getMainHandItem();var state=BladeStateAccess.of(blade).orElse(null);
         if(state==null || !state.getComboRoot().equals(ComboStateRegistry.STANDBY.getId()))return;
         var data=blade.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag();data.putBoolean(CHARGED,true);

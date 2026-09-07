@@ -10,7 +10,7 @@ import net.minecraft.world.entity.player.Player;
 public final class LegacyRank {
     private LegacyRank(){}
     public static boolean award(IConcentrationRank rank,DamageSource source) {
-        if(!LegacyCompat.LEGACY_COMBAT.get() || !LegacyCompat.LEGACY_RANK.get()
+        if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !LegacyCompat.isEnabled(LegacyCompat.LEGACY_RANK)
                 || !(source.getEntity() instanceof Player player) || player.level().isClientSide)return false;
         var state=BladeStateAccess.of(player.getMainHandItem()).orElse(null);
         if(state==null || !state.getComboRoot().equals(ComboStateRegistry.STANDBY.getId()))return false;
@@ -30,7 +30,7 @@ public final class LegacyRank {
         return true;
     }
     public static void awardAction(Player player,IConcentrationRank rank,String action,float factor) {
-        if(!LegacyCompat.LEGACY_RANK.get() || factor==0)return;
+        if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_RANK) || factor==0)return;
         int legacyPoints=(int)(100*Math.abs(factor));
         long now=player.level().getGameTime();
         String key="slashblade_legacy_compat.rank_cd."+action;
