@@ -45,8 +45,8 @@ jobs:
           checksums="SEAC-SlashBlade-Old-Dream-Reforged-${version}-SHA256SUMS.txt"
           cp "build/libs/${runtime}" "${out}/${runtime}"
           cp "build/libs/${sources}" "${out}/${sources}"
-          echo '1e156254291e2db91317a4d34b153d19e6e77440de844969d0804f1c4eb1d2aa  '"${out}/${runtime}" | sha256sum -c -
-          echo 'c4c04b58744e2a7dfdc67e01adc2c06b05a033004ab0fd1b0f700e9bbb4dde48  '"${out}/${sources}" | sha256sum -c -
+          echo '08ed83bc041c5f8d773ae262191a044602fd3bc18a073887d72dce9191058ebd  '"${out}/${runtime}" | sha256sum -c -
+          echo '31be72c4f33b4fffade51a4053d15e0e9b786f70698e6e81cd3b92160a548dc2  '"${out}/${sources}" | sha256sum -c -
           jar tf "${out}/${runtime}" > "${RUNNER_TEMP}/seac-slashblade-runtime-entries.txt"
           if grep -q '^org/scex/slashbladelegacy/contracts/' "${RUNNER_TEMP}/seac-slashblade-runtime-entries.txt"; then
             echo 'Development contract harness leaked into the runtime JAR.' >&2
