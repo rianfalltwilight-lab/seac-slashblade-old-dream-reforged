@@ -197,7 +197,6 @@ public final class LegacyCombat {
         Player player=event.getEntity();
         LegacyDamage.update(player);
         if(player.onGround())player.getPersistentData().remove(AIR_USED);
-        LegacyRespiration.tick(player);
         if(!player.level().isClientSide){tickMotion(player,player.level().getGameTime());LegacyJustGuard.tick(player);LegacyProjectileGuard.tick(player);LegacySheathingRepair.tick(player);}
     }
     public static void projectileHit(net.minecraft.world.item.ItemStack blade,LivingEntity target,Player player) {
@@ -313,6 +312,7 @@ public final class LegacyCombat {
     public static void impact(LivingEntity user,LivingEntity target,LegacyMove move) {
         Vec3 forward=Vec3.directionFromRotation(0,user.getYRot());
         switch(move) {
+            case SLASH_DIM -> target.setDeltaMovement(Vec3.ZERO);
             case KIRIAGE,RISING_STAR -> {target.setOnGround(false);target.setDeltaMovement(0,.6,0);stun(target);}
             case KIRIOROSI -> {var v=target.getDeltaMovement();target.setDeltaMovement(v.x+forward.x*.25,Math.min(0,v.y)-.2,v.z+forward.z*.25);target.fallDistance+=4;target.invulnerableTime=0;}
             case BATTOU,RETURN_EDGE,HIRA_TUKI -> {

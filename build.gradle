@@ -2,7 +2,7 @@ plugins {
     id 'java-library'
     id 'net.neoforged.moddev' version '2.0.144'
 }
-version = '0.2.0-dev.1'
+version = '0.2.0-dev.3'
 group = 'org.scex'
 base { archivesName = 'SEAC-SlashBlade-Old-Dream-Reforged-1.21.1' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)

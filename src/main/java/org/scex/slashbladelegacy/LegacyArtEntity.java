@@ -48,7 +48,7 @@ public final class LegacyArtEntity extends EntityAbstractSummonedSword {
         entityData.set(AGE,age()+1);
         if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !(getOwner() instanceof Player owner) || !owner.isAlive()){discard();return;}
         var blade=LegacyRangeAttack.sourceBlade(owner,sourceId);
-        if(blade.isEmpty() || mode()!=Mode.DIMENSION && !LegacyDamage.holding(owner,blade)){discard();return;}
+        if(blade.isEmpty() || mode()!=Mode.DIMENSION && mode()!=Mode.JUDGEMENT && !LegacyDamage.holding(owner,blade)){discard();return;}
         switch(mode()) {
             case DIMENSION->field(owner,blade);
             case SPEAR->{setPos(owner.position());var area=new AABB(position(),position()).inflate(1.5);LegacyProjectileGuard.sweep(this,owner,area,1);if(age()%2==0)LegacyArts.melee(owner,blade,area,LegacyMove.HIRA_TUKI,"Spear",-.2f,false);}
@@ -112,7 +112,7 @@ public final class LegacyArtEntity extends EntityAbstractSummonedSword {
                 for(int i=0;i<2;i++)spawn(owner,blade,Mode.DIMENSION,target.position().add((random.nextFloat()-.5)*5,target.getBbHeight()*random.nextFloat(),(random.nextFloat()-.5)*5),10+i*3,1,true);
             }
         }
-        if(age()==30 && LegacyDamage.holding(owner,blade)){LegacyArts.recovery(owner,LegacyArts.Art.DIMENSION);blade.setDamageValue(blade.getMaxDamage()/2);}
+        if(age()==30)LegacyArts.finishSuper(owner,blade);
     }
     public static void teleport(net.neoforged.neoforge.event.entity.EntityTeleportEvent.EnderEntity event) {
         var entity=event.getEntity();if(!(entity instanceof net.minecraft.world.entity.monster.EnderMan) || !entity.getPersistentData().contains(TELEPORT))return;

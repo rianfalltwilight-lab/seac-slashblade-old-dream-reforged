@@ -138,6 +138,7 @@ final class Legacy17Contracts {
             AddonEffects17Contracts.run(player,report);
             AddonTarget17Contracts.run(player,report);
             Enchant17Contracts.run(player,report);
+            ActiveEnchantContracts.run(player,report);
             Repair17Contracts.run(player,report);
             BladeSoul17Contracts.run(player,report);
             Broken17Contracts.run(player,report);

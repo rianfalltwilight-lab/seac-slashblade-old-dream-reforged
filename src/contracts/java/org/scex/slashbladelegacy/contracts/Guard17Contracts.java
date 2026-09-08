@@ -19,7 +19,7 @@ import org.scex.slashbladelegacy.*;
 
 final class Guard17Contracts {
     /** Only fake-network/invulnerability fixtures differ; hurt and all damage events are real. */
-    private static final class VulnerablePlayer extends net.neoforged.neoforge.common.util.FakePlayer {
+    static final class VulnerablePlayer extends net.neoforged.neoforge.common.util.FakePlayer {
         VulnerablePlayer(ServerLevel level) throws Exception {
             super(level,new GameProfile(UUID.randomUUID(),"Guard17"));
             var spawn=ServerPlayer.class.getDeclaredField("spawnInvulnerableTime");spawn.setAccessible(true);spawn.setInt(this,0);

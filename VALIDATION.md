@@ -1,3 +1,5 @@
+当前 0.2.0-dev.3 的更新与验证见 [Release 说明](docs/releases/0.2.0-dev.3.md)。以下保留历史验收范围。
+
 # Validation: 0.2.0-dev.1
 
 Frozen primary-project source archive SHA-256: 4de6237ca0afd43f3ef89f87661065b0cc1f5cc5fc1f2856bb023b69ebcff6b8. Every archived file checked against the frozen inventory. Public source: 137 files / 118 Java. Public metadata and license packaging differ from the internal JAR; Java implementation is unchanged.

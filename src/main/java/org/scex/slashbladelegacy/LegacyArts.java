@@ -41,7 +41,7 @@ public final class LegacyArts {
             if(art==Art.SAKURA || art==Art.MAXIMUM)register(art,SlashArts.ArtsType.Success,LegacyMove.RETURN_EDGE,true);
             ARTS.register(art.key,()->new SlashArts(user->combo(art,SlashArts.ArtsType.Success,false))
                     .setComboStateJust(user->combo(art,SlashArts.ArtsType.Jackpot,false))
-                    .setComboStateSuper(user->art==Art.DIMENSION?combo(art,SlashArts.ArtsType.Super,false):ComboStateRegistry.NONE.getId()).setProudSoulCost(art.souls));
+                    .setComboStateSuper(user->combo(Art.DIMENSION,SlashArts.ArtsType.Super,false)).setProudSoulCost(art.souls));
         }
     }
     private LegacyArts(){}
@@ -73,8 +73,17 @@ public final class LegacyArts {
     }
     public static ResourceLocation select(SlashArts arts,SlashArts.ArtsType type,LivingEntity user) {
         if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !(user instanceof Player))return null;
-        var art=resolve(SlashArts.getRegistryKey(arts));if(art==null)return null;
-        return type==SlashArts.ArtsType.Fail || type==SlashArts.ArtsType.Super && art!=Art.DIMENSION?ComboStateRegistry.NONE.getId():combo(art,type,false);
+        var art=resolve(SlashArts.getRegistryKey(arts));
+        if(type==SlashArts.ArtsType.Super) {
+            if(art!=null)return combo(Art.DIMENSION,type,false);
+            // Old ISuperSpecialAttack implementations may supply their own Super. Otherwise
+            // the framework's default (or no Super) falls back to r87 SlashDimension.
+            var selected=arts.getComboStateSuper().apply(user);
+            if(selected==null || selected.equals(ComboStateRegistry.NONE.getId()) || selected.equals(ComboStateRegistry.JUDGEMENT_CUT_END.getId()))return combo(Art.DIMENSION,type,false);
+            return selected;
+        }
+        if(art==null)return null;
+        return type==SlashArts.ArtsType.Fail?ComboStateRegistry.NONE.getId():combo(art,type,false);
     }
     public static boolean release(ItemStack blade,Level level,LivingEntity user,int timeLeft) {
         if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !(user instanceof Player player))return false;
@@ -180,6 +189,11 @@ public final class LegacyArts {
         }
     }
     public static void recovery(Player player,Art art) {BladeStateAccess.of(player.getMainHandItem()).ifPresent(state->state.updateComboSeq(player,combo(art,art==Art.DIMENSION?SlashArts.ArtsType.Super:SlashArts.ArtsType.Success,true)));}
+    public static void finishSuper(Player player,ItemStack blade) {
+        if(LegacyDamage.holding(player,blade))recovery(player,Art.DIMENSION);
+        else {BladeStateAccess.of(blade).ifPresent(state->state.setComboSeq(combo(Art.DIMENSION,SlashArts.ArtsType.Super,true)));player.swing(InteractionHand.MAIN_HAND);}
+        blade.setDamageValue(blade.getMaxDamage()/2);
+    }
     public static void syncMotion(Player player){player.hurtMarked=true;if(player instanceof ServerPlayer server)server.connection.send(new net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket(player));}
     public static void sound(Player player,SoundEvent sound,float volume,float pitch){player.level().playSound(null,player.blockPosition(),sound,SoundSource.PLAYERS,volume,pitch);}
     public static void sound(Player player,net.minecraft.core.Holder<SoundEvent> sound,float volume,float pitch){sound(player,sound.value(),volume,pitch);}

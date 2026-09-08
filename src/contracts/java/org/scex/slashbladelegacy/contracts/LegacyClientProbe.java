@@ -80,6 +80,9 @@ public final class LegacyClientProbe {
                     }catch(Throwable e){failure=e;}
                 });
             }else if(phase==4 && prepared && ++ticks>=30){
+                if(LegacyLeftClientProbe.enabled()){ticks=0;phase=19;return;}
+                if(LegacyFeatherClientProbe.enabled()){ticks=0;phase=20;return;}
+                if(LegacySuperClientProbe.enabled()){ticks=0;phase=21;return;}
                 ticks=0;phase=5;mc.options.setCameraType(Boolean.getBoolean("scex.legacy.rawInputProbe")?net.minecraft.client.CameraType.FIRST_PERSON:net.minecraft.client.CameraType.THIRD_PERSON_FRONT);
             }else if(phase==5){
                 ticks++;
@@ -155,6 +158,9 @@ public final class LegacyClientProbe {
                     results.put("first_person_right_chain",List.copyOf(chain));phase=13;
                 }}
             }else if(phase==13){
+                if(LegacyLeftClientProbe.enabled()){barrierTested=true;results.put("legacy17_left_client",LegacyLeftClientProbe.report());}
+                if(LegacyFeatherClientProbe.enabled()){barrierTested=true;results.put("legacy17_feather_client",LegacyFeatherClientProbe.report());}
+                if(LegacySuperClientProbe.enabled()){barrierTested=true;results.put("legacy17_super_client",LegacySuperClientProbe.report());}
                 if(FULL17 && !barrierTested){
                     phase=14;ticks=0;prepared=false;
                     mc.getSingleplayerServer().execute(()->{try{
@@ -180,7 +186,7 @@ public final class LegacyClientProbe {
                 }
                 Files.writeString(out.resolve("item-model-audit.json"),new GsonBuilder().create().toJson(Map.of("registeredItems",blades,"missingItemModels",missing)));
                 require(missing.isEmpty(),"Missing blade models: "+missing);
-                Files.writeString(out.resolve("result.json"),new GsonBuilder().create().toJson(Map.of("status","captured","screenshots",(FULL17?(LegacyRangeClientProbe.enabled()?23:8):4)+(LegacyArtsClientProbe.enabled()?LegacyArtsClientProbe.SCREENSHOTS:0)+(LegacyGaiaClientProbe.enabled()?LegacyGaiaClientProbe.COUNT:0),"checks_passed",true,"entry","MultiPlayerGameMode.useItem packets and integrated server")));
+                Files.writeString(out.resolve("result.json"),new GsonBuilder().create().toJson(Map.of("status","captured","screenshots",LegacySuperClientProbe.enabled()?LegacySuperClientProbe.SCREENSHOTS:LegacyFeatherClientProbe.enabled()?LegacyFeatherClientProbe.SCREENSHOTS:LegacyLeftClientProbe.enabled()?LegacyLeftClientProbe.SCREENSHOTS:(FULL17?(LegacyRangeClientProbe.enabled()?23:8):4)+(LegacyArtsClientProbe.enabled()?LegacyArtsClientProbe.SCREENSHOTS:0)+(LegacyGaiaClientProbe.enabled()?LegacyGaiaClientProbe.COUNT:0),"checks_passed",true,"entry",LegacySuperClientProbe.enabled()?"Raw KeyboardHandler, V key mapping, MoveCommandMessage and server entity ticks":LegacyLeftClientProbe.enabled()?"Raw left mouse mapping, Minecraft picking, attack packets and real player":"MultiPlayerGameMode.useItem packets and integrated server")));
                 if(!LegacyTimingTrace.failures().isEmpty())Files.writeString(out.resolve("result.json"),new GsonBuilder().create().toJson(Map.of("status","diagnostic_failure","screenshots",4,"checks_passed",false,"original_assertion_failures",LegacyTimingTrace.failures())));
                 done=true;mc.stop();
             }else if(phase==14 && prepared){
@@ -196,6 +202,9 @@ public final class LegacyClientProbe {
             else if(phase==16 && LegacyRangeClientProbe.tick(mc,name->capture=name)){rangeTested=true;phase=13;}
             else if(phase==17 && LegacyArtsClientProbe.tick(mc,name->capture=name)){artsTested=true;phase=13;}
             else if(phase==18 && LegacyGaiaClientProbe.tick(mc,name->capture=name)){gaiaTested=true;phase=13;}
+            else if(phase==19){try{if(LegacyLeftClientProbe.tick(mc,name->capture=name))phase=13;}catch(Throwable e){results.put("legacy17_left_client",LegacyLeftClientProbe.report());throw e;}}
+            else if(phase==20){try{if(LegacyFeatherClientProbe.tick(mc,name->capture=name))phase=13;}catch(Throwable e){results.put("legacy17_feather_client",LegacyFeatherClientProbe.report());throw e;}}
+            else if(phase==21){try{if(LegacySuperClientProbe.tick(mc,name->capture=name))phase=13;}catch(Throwable e){LegacySuperClientProbe.release(mc);results.put("legacy17_super_client",LegacySuperClientProbe.report());throw e;}}
         }catch(Throwable e){done=true;LegacyRangeClientProbe.release(mc);LegacyArtsClientProbe.release(mc);LegacyGaiaClientProbe.release(mc);results.put("legacy17_gaia_client",LegacyGaiaClientProbe.report());mc.options.keyUse.setDown(false);mc.options.keyShift.setDown(false);mc.options.keyUp.setDown(false);results.put("legacy17_range_client",LegacyRangeClientProbe.report());results.put("legacy17_arts_client",LegacyArtsClientProbe.report());results.put("damage_probe",LegacyDamageProbe.report());com.mojang.logging.LogUtils.getLogger().error("SLASHBLADE_CLIENT_VERIFICATION_FAILED",e);try{Files.writeString(out.resolve("failure.txt"),e.toString());Files.writeString(out.resolve("checks.json"),new GsonBuilder().create().toJson(results));}catch(Exception ignored){}mc.stop();}
     }
     private static void equip(Minecraft mc,String id){
@@ -223,3 +232,4 @@ public final class LegacyClientProbe {
     }
     private static void require(boolean v,String m){if(!v && !LegacyTimingTrace.observeFailure(m))throw new IllegalStateException(m);}
 }
+

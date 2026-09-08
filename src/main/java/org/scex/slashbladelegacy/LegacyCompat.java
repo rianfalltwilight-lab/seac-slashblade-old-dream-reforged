@@ -70,6 +70,8 @@ public final class LegacyCompat {
         LegacyArts.ARTS.register(modBus);
         NeoForge.EVENT_BUS.addListener(EventPriority.LOW, LegacyCombat::nextCombo);
         NeoForge.EVENT_BUS.addListener(LegacyCombat::tick);
+        NeoForge.EVENT_BUS.addListener(LegacyAirControl::tick);
+        NeoForge.EVENT_BUS.addListener(LegacyFireResistance::tick);
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) -> {LegacyJustGuard.clear(event.getEntity());LegacyRangeAttack.clear(event.getEntity());});
         NeoForge.EVENT_BUS.addListener(LegacyFreeze::tick);
         NeoForge.EVENT_BUS.addListener(LegacyArtEntity::teleport);

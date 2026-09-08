@@ -14,7 +14,7 @@ public abstract class LegacyEnchantmentsMixin {
     @Inject(method="supportsEnchantment",at=@At("HEAD"),cancellable=true)
     private void legacyCompat$support(ItemStack blade,Holder<Enchantment> enchantment,CallbackInfoReturnable<Boolean> cir) {
         if(LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && LegacyEnchantments.vanilla(enchantment))
-            cir.setReturnValue(LegacyEnchantments.sword(enchantment) || LegacyEnchantments.rare(enchantment));
+            cir.setReturnValue(LegacyEnchantments.sword(enchantment));
     }
     @Inject(method="isPrimaryItemFor",at=@At("HEAD"),cancellable=true)
     private void legacyCompat$table(ItemStack blade,Holder<Enchantment> enchantment,CallbackInfoReturnable<Boolean> cir) {

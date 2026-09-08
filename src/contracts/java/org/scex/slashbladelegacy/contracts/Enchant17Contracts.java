@@ -34,7 +34,7 @@ final class Enchant17Contracts {
         try {
             for(var key:LegacyEnchantments.RARE) {
                 var enchantment=player.registryAccess().holderOrThrow(key);
-                check(blade.supportsEnchantment(enchantment),"rare support "+key);
+                check(blade.supportsEnchantment(enchantment)==LegacyEnchantments.SWORD.contains(key),"rare excluded from regular book acquisition "+key);
                 check(blade.isPrimaryItemFor(enchantment)==LegacyEnchantments.SWORD.contains(key),"rare excluded from table "+key);
             }
             for(var key:LegacyEnchantments.SWORD)check(blade.isPrimaryItemFor(player.registryAccess().holderOrThrow(key)),"old sword table "+key);
