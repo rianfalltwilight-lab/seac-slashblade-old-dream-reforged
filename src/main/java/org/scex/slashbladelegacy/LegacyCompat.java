@@ -61,6 +61,7 @@ public final class LegacyCompat {
     public LegacyCompat(net.neoforged.bus.api.IEventBus modBus, ModContainer container) {
         // SERVER configs synchronize to clients. Restart/re-equip after changing this development config.
         container.registerConfig(ModConfig.Type.SERVER, SPEC);
+        modBus.addListener(LegacyAvoidPayload::register);
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST, LegacyCompat::damage);
         NeoForge.EVENT_BUS.addListener(EventPriority.LOW, LegacyCompat::reach);
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST, LegacyCompat::validateMelee);

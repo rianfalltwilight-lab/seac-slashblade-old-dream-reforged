@@ -9,6 +9,7 @@
     "LegacyChargeMixin",
     "LegacyArtsMixin",
     "LegacySuperArtsMixin",
+    "LegacyAvoidMixin",
     "LegacyArtReleaseMixin",
     "LegacyGuardMixin",
     "LegacyEnchantmentsMixin",

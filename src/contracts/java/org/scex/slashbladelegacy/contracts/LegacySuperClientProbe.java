@@ -20,7 +20,7 @@ import org.scex.slashbladelegacy.*;
 
 /** Real KeyboardHandler -> key mapping -> MoveCommandMessage -> server release and entity ticks. */
 final class LegacySuperClientProbe {
-    static boolean enabled(){return Boolean.getBoolean("scex.legacy.superProbe");}
+    static boolean enabled(){return Boolean.getBoolean("scex.legacy.superProbe") || LegacyAvoidClientProbe.enabled();}
     static final int SCREENSHOTS=10;
     private static final List<String> BLADES=List.of("slashblade:sange","prinegorerouse:aeon_blade","si_slashblade:legacy/fox_faerie");
     private static int test,stage,tick;

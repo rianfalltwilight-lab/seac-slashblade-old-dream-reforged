@@ -42,6 +42,8 @@ public final class LegacyClientProbe {
     private static boolean rangeTested;
     private static boolean artsTested;
     private static boolean gaiaTested;
+    private static boolean coverOpened;
+    private static int coverTicks;
     private static int airInputStage;
     private static long inputNs,airStartNs,groundNs;
     private static boolean sampled,airObserved;
@@ -60,6 +62,20 @@ public final class LegacyClientProbe {
             if(phase==0 && mc.screen instanceof net.minecraft.client.gui.screens.AccessibilityOnboardingScreen){mc.options.onboardingAccessibilityFinished();mc.setScreen(new TitleScreen());}
             if(phase==0 && mc.screen instanceof TitleScreen && mc.getOverlay()==null){capture="01-title.png";phase=1;}
             else if(phase==2){
+                if(Boolean.getBoolean("scex.legacy.coverProbe") && !captured("00-mod-cover.png")) {
+                    if(!coverOpened) {
+                        var screen=new net.neoforged.neoforge.client.gui.ModListScreen(mc.screen);
+                        mc.setScreen(screen);
+                        var list=screen.children().stream().filter(net.neoforged.neoforge.client.gui.widget.ModListWidget.class::isInstance)
+                                .map(net.neoforged.neoforge.client.gui.widget.ModListWidget.class::cast).findFirst().orElseThrow();
+                        var entry=list.children().stream().filter(e->e.getInfo().getModId().equals(LegacyCompat.MOD_ID)).findFirst().orElseThrow();
+                        require(entry.getInfo().getLogoFile().orElse("").equals("cover.png"),"Packaged mod cover metadata");
+                        list.setSelected(entry);screen.setSelected(entry);coverOpened=true;
+                        results.put("mod_cover",Map.of("mod_id",LegacyCompat.MOD_ID,"logo",entry.getInfo().getLogoFile().orElseThrow()));
+                    }
+                    if(++coverTicks>=5)capture="00-mod-cover.png";
+                    return;
+                }
                 phase=3;
                 mc.createWorldOpenFlows().createFreshLevel("slashblade-visual-"+System.currentTimeMillis(),
                     new LevelSettings("SlashBlade isolated input verification",GameType.CREATIVE,false,net.minecraft.world.Difficulty.NORMAL,true,new GameRules(),WorldDataConfiguration.DEFAULT),
@@ -82,6 +98,7 @@ public final class LegacyClientProbe {
             }else if(phase==4 && prepared && ++ticks>=30){
                 if(LegacyLeftClientProbe.enabled()){ticks=0;phase=19;return;}
                 if(LegacyFeatherClientProbe.enabled()){ticks=0;phase=20;return;}
+                if(LegacyAvoidClientProbe.enabled()){ticks=0;phase=22;return;}
                 if(LegacySuperClientProbe.enabled()){ticks=0;phase=21;return;}
                 ticks=0;phase=5;mc.options.setCameraType(Boolean.getBoolean("scex.legacy.rawInputProbe")?net.minecraft.client.CameraType.FIRST_PERSON:net.minecraft.client.CameraType.THIRD_PERSON_FRONT);
             }else if(phase==5){
@@ -161,6 +178,7 @@ public final class LegacyClientProbe {
                 if(LegacyLeftClientProbe.enabled()){barrierTested=true;results.put("legacy17_left_client",LegacyLeftClientProbe.report());}
                 if(LegacyFeatherClientProbe.enabled()){barrierTested=true;results.put("legacy17_feather_client",LegacyFeatherClientProbe.report());}
                 if(LegacySuperClientProbe.enabled()){barrierTested=true;results.put("legacy17_super_client",LegacySuperClientProbe.report());}
+                if(LegacyAvoidClientProbe.enabled())results.put("legacy17_avoid_client",LegacyAvoidClientProbe.report());
                 if(FULL17 && !barrierTested){
                     phase=14;ticks=0;prepared=false;
                     mc.getSingleplayerServer().execute(()->{try{
@@ -186,7 +204,7 @@ public final class LegacyClientProbe {
                 }
                 Files.writeString(out.resolve("item-model-audit.json"),new GsonBuilder().create().toJson(Map.of("registeredItems",blades,"missingItemModels",missing)));
                 require(missing.isEmpty(),"Missing blade models: "+missing);
-                Files.writeString(out.resolve("result.json"),new GsonBuilder().create().toJson(Map.of("status","captured","screenshots",LegacySuperClientProbe.enabled()?LegacySuperClientProbe.SCREENSHOTS:LegacyFeatherClientProbe.enabled()?LegacyFeatherClientProbe.SCREENSHOTS:LegacyLeftClientProbe.enabled()?LegacyLeftClientProbe.SCREENSHOTS:(FULL17?(LegacyRangeClientProbe.enabled()?23:8):4)+(LegacyArtsClientProbe.enabled()?LegacyArtsClientProbe.SCREENSHOTS:0)+(LegacyGaiaClientProbe.enabled()?LegacyGaiaClientProbe.COUNT:0),"checks_passed",true,"entry",LegacySuperClientProbe.enabled()?"Raw KeyboardHandler, V key mapping, MoveCommandMessage and server entity ticks":LegacyLeftClientProbe.enabled()?"Raw left mouse mapping, Minecraft picking, attack packets and real player":"MultiPlayerGameMode.useItem packets and integrated server")));
+                Files.writeString(out.resolve("result.json"),new GsonBuilder().create().toJson(Map.of("status","captured","screenshots",(LegacyAvoidClientProbe.enabled()?LegacyAvoidClientProbe.SCREENSHOTS:LegacySuperClientProbe.enabled()?LegacySuperClientProbe.SCREENSHOTS:LegacyFeatherClientProbe.enabled()?LegacyFeatherClientProbe.SCREENSHOTS:LegacyLeftClientProbe.enabled()?LegacyLeftClientProbe.SCREENSHOTS:(FULL17?(LegacyRangeClientProbe.enabled()?23:8):4)+(LegacyArtsClientProbe.enabled()?LegacyArtsClientProbe.SCREENSHOTS:0)+(LegacyGaiaClientProbe.enabled()?LegacyGaiaClientProbe.COUNT:0))+(coverOpened?1:0),"checks_passed",true,"entry",LegacySuperClientProbe.enabled()?"Raw KeyboardHandler, V key mapping, MoveCommandMessage and server entity ticks":LegacyLeftClientProbe.enabled()?"Raw left mouse mapping, Minecraft picking, attack packets and real player":"MultiPlayerGameMode.useItem packets and integrated server")));
                 if(!LegacyTimingTrace.failures().isEmpty())Files.writeString(out.resolve("result.json"),new GsonBuilder().create().toJson(Map.of("status","diagnostic_failure","screenshots",4,"checks_passed",false,"original_assertion_failures",LegacyTimingTrace.failures())));
                 done=true;mc.stop();
             }else if(phase==14 && prepared){
@@ -205,6 +223,7 @@ public final class LegacyClientProbe {
             else if(phase==19){try{if(LegacyLeftClientProbe.tick(mc,name->capture=name))phase=13;}catch(Throwable e){results.put("legacy17_left_client",LegacyLeftClientProbe.report());throw e;}}
             else if(phase==20){try{if(LegacyFeatherClientProbe.tick(mc,name->capture=name))phase=13;}catch(Throwable e){results.put("legacy17_feather_client",LegacyFeatherClientProbe.report());throw e;}}
             else if(phase==21){try{if(LegacySuperClientProbe.tick(mc,name->capture=name))phase=13;}catch(Throwable e){LegacySuperClientProbe.release(mc);results.put("legacy17_super_client",LegacySuperClientProbe.report());throw e;}}
+            else if(phase==22){try{if(LegacyAvoidClientProbe.tick(mc,name->capture=name))phase=21;}catch(Throwable e){LegacyAvoidClientProbe.release(mc);results.put("legacy17_avoid_client",LegacyAvoidClientProbe.report());throw e;}}
         }catch(Throwable e){done=true;LegacyRangeClientProbe.release(mc);LegacyArtsClientProbe.release(mc);LegacyGaiaClientProbe.release(mc);results.put("legacy17_gaia_client",LegacyGaiaClientProbe.report());mc.options.keyUse.setDown(false);mc.options.keyShift.setDown(false);mc.options.keyUp.setDown(false);results.put("legacy17_range_client",LegacyRangeClientProbe.report());results.put("legacy17_arts_client",LegacyArtsClientProbe.report());results.put("damage_probe",LegacyDamageProbe.report());com.mojang.logging.LogUtils.getLogger().error("SLASHBLADE_CLIENT_VERIFICATION_FAILED",e);try{Files.writeString(out.resolve("failure.txt"),e.toString());Files.writeString(out.resolve("checks.json"),new GsonBuilder().create().toJson(results));}catch(Exception ignored){}mc.stop();}
     }
     private static void equip(Minecraft mc,String id){

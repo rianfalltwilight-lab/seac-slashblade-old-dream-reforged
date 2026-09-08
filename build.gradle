@@ -2,7 +2,7 @@ plugins {
     id 'java-library'
     id 'net.neoforged.moddev' version '2.0.144'
 }
-version = '0.2.0-dev.3'
+version = '0.2.0-dev.5'
 group = 'org.scex'
 base { archivesName = 'SEAC-SlashBlade-Old-Dream-Reforged-1.21.1' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
@@ -57,7 +57,7 @@ sourceSets.persistence.runtimeClasspath += sourceSets.main.output
 sourceSets.contracts.compileClasspath += sourceSets.main.output
 sourceSets.contracts.runtimeClasspath += sourceSets.main.output
 neoForge {
-    version = '21.1.248'
+    version = providers.gradleProperty('neoForgeVersion').getOrElse('21.1.248')
     addModdingDependenciesTo(sourceSets.contracts)
     addModdingDependenciesTo(sourceSets.persistence)
     runs {

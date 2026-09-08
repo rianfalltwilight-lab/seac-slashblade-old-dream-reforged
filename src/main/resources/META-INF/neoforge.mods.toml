@@ -8,8 +8,10 @@ modId="slashblade_legacy_compat"
 version="${mod_version}"
 displayName="SEAC拔刀剑附属 旧梦重铸"
 displayURL="https://github.com/rianfalltwilight-lab/seac-slashblade-old-dream-reforged"
+logoFile="cover.png"
+logoBlur=false
 authors="SEAC contributors; AI assistance: OpenAI Codex"
-description='''Unofficial SlashBlade: Resharpened add-on that rebuilds selected 1.12.2-era combat behavior for Minecraft 1.21.1. Development prerelease; not production accepted.'''
+description='''Independent legacy behavior compatibility for SlashBlade: Resharpened. Development candidate, not production accepted.'''
 [[dependencies.slashblade_legacy_compat]]
 modId="minecraft"
 type="required"
@@ -19,12 +21,15 @@ side="BOTH"
 [[dependencies.slashblade_legacy_compat]]
 modId="neoforge"
 type="required"
-versionRange="[21.1.248]"
+# Minecraft is pinned separately; do not turn the build's patch version into a runtime requirement.
+versionRange="[21.1,)"
 ordering="NONE"
 side="BOTH"
 [[dependencies.slashblade_legacy_compat]]
 modId="slashblade"
 type="required"
+# The framework is required; its release number is not an API compatibility gate.
+# Reproducible build/test inputs remain pinned separately in dependencies.sha256.json.
 versionRange="[0,)"
 ordering="AFTER"
 side="BOTH"
