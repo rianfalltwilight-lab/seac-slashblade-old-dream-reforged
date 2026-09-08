@@ -24,7 +24,7 @@ final class AnimationContracts {
         try{drive.setKnockBack(null);var tag=new net.minecraft.nbt.CompoundTag();drive.addAdditionalSaveData(tag);
             drive.readAdditionalSaveData(tag);require(drive.getKnockBack()==mods.flammpfeil.slashblade.util.KnockBacks.cancel,"Null drive knockback did not roundtrip");
         }finally{drive.discard();}
-        for(var move:LegacyMove.values())if(move!=LegacyMove.NONE)require(LegacyCombat.animationEnd(move)>LegacyCombat.animationStart(move),"Missing actual motion clip "+move);
+        for(var move:LegacyMove.values())if(move!=LegacyMove.NONE)require(ComboStateRegistry.REGISTRY.get(LegacyCombat.id(move)).getStartFrame()==0 && ComboStateRegistry.REGISTRY.get(LegacyCombat.id(move)).getEndFrame()==0,"Legacy state still selects a VMD clip "+move);
         report.put("dev11_animation_motion",Map.of("immediate_helm_descent",true,"landing_clock",true,"native_fall_handler",true,"horizontal_roll",0,"vertical_roll",270,"null_drive_save",true));
         state.setComboSeq(ComboStateRegistry.NONE.getId());
     }

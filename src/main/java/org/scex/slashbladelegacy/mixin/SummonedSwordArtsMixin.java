@@ -2,22 +2,25 @@ package org.scex.slashbladelegacy.mixin;
 
 import mods.flammpfeil.slashblade.ability.SummonedSwordArts;
 import mods.flammpfeil.slashblade.capability.slashblade.ISlashBladeState;
-import net.minecraft.server.level.ServerPlayer;
+import mods.flammpfeil.slashblade.event.handler.InputCommandEvent;
+import java.util.Optional;
+import java.util.function.Consumer;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import org.scex.slashbladelegacy.SummonedBladeMode;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** The public input event cannot cancel only the original single-shot branch.
- * Version-pinned synthetic method verified against the production JAR with javap.
- * Required injection failure stops startup rather than charging/spawning both projectiles.
- */
+/** Suppress only the immediate shot callback; public input scheduling remains intact.
+ * This uses the stable Optional callback in onInputChange, without compiler-generated lambda numbers. */
 @Mixin(value=SummonedSwordArts.class,remap=false)
 public abstract class SummonedSwordArtsMixin {
-    @Inject(method="lambda$onInputChange$6(Lnet/minecraft/server/level/ServerPlayer;ILmods/flammpfeil/slashblade/capability/slashblade/ISlashBladeState;)V",
-            at=@At("HEAD"),cancellable=true,require=1,expect=1)
-    private void legacySingleShot(ServerPlayer player,int power,ISlashBladeState state,CallbackInfo callback) {
-        if (SummonedBladeMode.enabled(player.getMainHandItem())) callback.cancel();
+    @org.spongepowered.asm.mixin.injection.Inject(method="onInputChange",at=@At("HEAD"),cancellable=true)
+    private void legacyRange(InputCommandEvent event,org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        if(org.scex.slashbladelegacy.LegacyRangeAttack.enabled())ci.cancel();
+    }
+    @WrapOperation(method="onInputChange",at=@At(value="INVOKE",target="Ljava/util/Optional;ifPresent(Ljava/util/function/Consumer;)V"),require=1,expect=1,allow=1)
+    private void legacySingleShot(Optional<ISlashBladeState> state,Consumer<ISlashBladeState> action,Operation<Void> original,InputCommandEvent event) {
+        if(!SummonedBladeMode.enabled(event.getEntity().getMainHandItem()))original.call(state,action);
     }
 }

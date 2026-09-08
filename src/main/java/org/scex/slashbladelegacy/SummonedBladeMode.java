@@ -31,6 +31,12 @@ public final class SummonedBladeMode {
     public static final String MODE="RangeAttackType";
     public static final String SOURCE="scex_legacy_source";
     public static final DeferredRegister<EntityType<?>> ENTITIES=DeferredRegister.create(Registries.ENTITY_TYPE,LegacyCompat.MOD_ID);
+    public static final DeferredHolder<EntityType<?>,EntityType<LegacyArtEntity>> ART=ENTITIES.register("art", () ->
+            EntityType.Builder.<LegacyArtEntity>of(LegacyArtEntity::new,MobCategory.MISC)
+                    .sized(4,4).clientTrackingRange(12).updateInterval(1).build("slashblade_legacy_compat:art"));
+    public static final DeferredHolder<EntityType<?>,EntityType<LegacyPhantomSword>> SWORD=ENTITIES.register("phantom_sword", () ->
+            EntityType.Builder.<LegacyPhantomSword>of(LegacyPhantomSword::new,MobCategory.MISC)
+                    .sized(.5f,.5f).clientTrackingRange(8).updateInterval(1).build("slashblade_legacy_compat:phantom_sword"));
     public static final DeferredHolder<EntityType<?>,EntityType<LegacyUpthrust>> UPTHRUST=ENTITIES.register("upthrust", () ->
             EntityType.Builder.<LegacyUpthrust>of(LegacyUpthrust::new,net.minecraft.world.entity.MobCategory.MISC)
                     .sized(.5f,.5f).clientTrackingRange(8).updateInterval(1).build("slashblade_legacy_compat:upthrust"));
@@ -83,6 +89,7 @@ public final class SummonedBladeMode {
         if(interaction.isCanceled())event.setCanceled(true);
     }
     public static void input(InputCommandEvent event) {
+        if(LegacyRangeAttack.enabled()) { LegacyRangeAttack.input(event);return; }
         var player=event.getEntity();
         boolean was=event.getOld().contains(InputCommand.M_DOWN), now=event.getCurrent().contains(InputCommand.M_DOWN);
         long tick=player.level().getGameTime();

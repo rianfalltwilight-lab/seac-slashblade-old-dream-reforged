@@ -30,11 +30,19 @@ public final class LegacyClientProbe {
     private static boolean done;
     private static Path out;
     private static String capture;
+    private static final Set<String> captured=new HashSet<>();
+    static boolean captured(String name){return captured.contains(name);}
     private static final List<String> chain=new ArrayList<>();
     private static final Map<String,Object> results=new LinkedHashMap<>();
     private static final List<String> blades=new ArrayList<>();
     private static double startHeight;
     private static final boolean CLOCK_AWARE=Boolean.getBoolean("scex.legacy.clockAwareProbe");
+    private static final boolean FULL17=Boolean.getBoolean("scex.legacy.full17Probe");
+    private static boolean barrierTested;
+    private static boolean rangeTested;
+    private static boolean artsTested;
+    private static boolean gaiaTested;
+    private static int airInputStage;
     private static long inputNs,airStartNs,groundNs;
     private static boolean sampled,airObserved;
     @SubscribeEvent public static void tick(ClientTickEvent.Post event) {
@@ -47,7 +55,7 @@ public final class LegacyClientProbe {
                 mc.getTutorial().setStep(net.minecraft.client.tutorial.TutorialSteps.NONE);
             }
             if(failure!=null)throw new IllegalStateException("Server fixture failed",failure);
-            if(System.nanoTime()-started>180_000_000_000L)throw new IllegalStateException("Timeout phase "+phase);
+            if(System.nanoTime()-started>(LegacyArtsClientProbe.enabled()?240_000_000_000L:180_000_000_000L))throw new IllegalStateException("Timeout phase "+phase);
             mc.getToasts().clear();
             if(phase==0 && mc.screen instanceof net.minecraft.client.gui.screens.AccessibilityOnboardingScreen){mc.options.onboardingAccessibilityFinished();mc.setScreen(new TitleScreen());}
             if(phase==0 && mc.screen instanceof TitleScreen && mc.getOverlay()==null){capture="01-title.png";phase=1;}
@@ -66,20 +74,25 @@ public final class LegacyClientProbe {
                         var p=s.getPlayerList().getPlayers().getFirst();p.teleportTo(l,12,71,12,0,0);p.getAbilities().flying=false;p.onUpdateAbilities();
                         blades.add("slashblade:sange");
                         if(net.neoforged.fml.ModList.get().isLoaded("slashblade_addon"))blades.add("slashblade_addon:kamuy_lightning");
+                        if(FULL17){blades.add("prinegorerouse:aeon_blade");blades.add("si_slashblade:legacy/fox_faerie");}
+                        LegacyDamageProbe.expandCases(blades);
                         equip(mc,blades.getFirst());prepared=true;
                     }catch(Throwable e){failure=e;}
                 });
             }else if(phase==4 && prepared && ++ticks>=30){
-                ticks=0;phase=5;mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_FRONT);
+                ticks=0;phase=5;mc.options.setCameraType(Boolean.getBoolean("scex.legacy.rawInputProbe")?net.minecraft.client.CameraType.FIRST_PERSON:net.minecraft.client.CameraType.THIRD_PERSON_FRONT);
             }else if(phase==5){
                 ticks++;
-                if(ticks==1){inputNs=System.nanoTime();sampled=false;mc.gameMode.useItem(mc.player,InteractionHand.MAIN_HAND);}
-                if(ticks==2)mc.gameMode.releaseUsingItem(mc.player);
+                if(ticks==1){if(!LegacyDamageProbe.beforeClick(mc,blades.get(bladeIndex),click)){ticks=0;return;}inputNs=System.nanoTime();sampled=false;
+                    if(Boolean.getBoolean("scex.legacy.rawInputProbe")){mc.options.keyUse.setDown(true);net.minecraft.client.KeyMapping.click(com.mojang.blaze3d.platform.InputConstants.Type.MOUSE.getOrCreate(1));}
+                    else mc.gameMode.useItem(mc.player,InteractionHand.MAIN_HAND);}
+                if(ticks==2){if(Boolean.getBoolean("scex.legacy.rawInputProbe"))mc.options.keyUse.setDown(false);else mc.gameMode.releaseUsingItem(mc.player);}
                 if(captureClick(mc)){
                     var state=BladeStateAccess.of(mc.player.getMainHandItem()).orElseThrow();
                     chain.add(state.getComboSeq().toString());capture="blade-"+bladeIndex+"-click-"+click+".png";
                 }
                 if(advanceClick()){
+                    LegacyDamageProbe.finishClick();
                     ticks=0;click++;
                     if(click==3){
                         results.put(blades.get(bladeIndex),List.copyOf(chain));
@@ -92,13 +105,24 @@ public final class LegacyClientProbe {
                     }
                 }
             }else if(phase==7){
+                if(LegacyDamageProbe.enabled()){results.put("damage_probe",LegacyDamageProbe.report());if(!FULL17){phase=13;return;}}
                 phase=8;ticks=0;prepared=false;airObserved=false;airStartNs=System.nanoTime();LegacyTimingTrace.resetLanding();
                 mc.getSingleplayerServer().execute(()->{
                     try{var p=mc.getSingleplayerServer().getPlayerList().getPlayers().getFirst();p.teleportTo(p.serverLevel(),12,79,12,0,0);p.setOnGround(false);
-                        BladeStateAccess.of(p.getMainHandItem()).orElseThrow().updateComboSeq(p,LegacyCombat.id(LegacyMove.HELM_BRAKER));prepared=true;
+                        if(FULL17)BladeStateAccess.of(p.getMainHandItem()).orElseThrow().setComboSeq(mods.flammpfeil.slashblade.registry.ComboStateRegistry.NONE.getId());
+                        else BladeStateAccess.of(p.getMainHandItem()).orElseThrow().updateComboSeq(p,LegacyCombat.id(LegacyMove.HELM_BRAKER));
+                        p.inventoryMenu.broadcastChanges();prepared=true;
                     }catch(Throwable e){failure=e;}
                 });
             }else if(phase==8 && prepared){
+                if(FULL17 && airInputStage<5){
+                    if(airInputStage==0 && (mc.player.onGround() || mc.player.getY()<=71))return;
+                    airInputStage++;
+                    if(airInputStage==1){mc.options.keyShift.setDown(true);mc.options.keyUp.setDown(true);}
+                    if(airInputStage==3){mc.options.keyUse.setDown(true);net.minecraft.client.KeyMapping.click(com.mojang.blaze3d.platform.InputConstants.Type.MOUSE.getOrCreate(1));}
+                    if(airInputStage==4){mc.options.keyUse.setDown(false);mc.options.keyShift.setDown(false);mc.options.keyUp.setDown(false);}
+                    return;
+                }
                 if(CLOCK_AWARE && !airObserved){
                     if(!mc.player.onGround() && mc.player.getY()>71 && LegacyCombat.move(BladeStateAccess.of(mc.player.getMainHandItem()).orElseThrow().getComboSeq())==LegacyMove.HELM_BRAKER)airObserved=true;
                     else {require(System.nanoTime()-airStartNs<1_000_000_000L,"Client did not receive airborne fixture");return;}
@@ -131,6 +155,21 @@ public final class LegacyClientProbe {
                     results.put("first_person_right_chain",List.copyOf(chain));phase=13;
                 }}
             }else if(phase==13){
+                if(FULL17 && !barrierTested){
+                    phase=14;ticks=0;prepared=false;
+                    mc.getSingleplayerServer().execute(()->{try{
+                        var p=mc.getSingleplayerServer().getPlayerList().getPlayers().getFirst();
+                        p.getMainHandItem().enchant(p.registryAccess().holderOrThrow(net.minecraft.world.item.enchantment.Enchantments.THORNS),1);
+                        BladeStateAccess.of(p.getMainHandItem()).orElseThrow().setComboSeq(mods.flammpfeil.slashblade.registry.ComboStateRegistry.NONE.getId());
+                        p.inventoryMenu.broadcastChanges();prepared=true;
+                    }catch(Throwable e){failure=e;}});return;
+                }
+                if(FULL17 && LegacyRangeClientProbe.enabled() && !rangeTested){phase=16;ticks=0;return;}
+                if(rangeTested)results.put("legacy17_range_client",LegacyRangeClientProbe.report());
+                if(FULL17 && LegacyArtsClientProbe.enabled() && !artsTested){phase=17;ticks=0;return;}
+                if(artsTested)results.put("legacy17_arts_client",LegacyArtsClientProbe.report());
+                if(FULL17 && LegacyGaiaClientProbe.enabled() && !gaiaTested){phase=18;ticks=0;return;}
+                if(gaiaTested)results.put("legacy17_gaia_client",LegacyGaiaClientProbe.report());
                 results.put("original_assertion_failures",LegacyTimingTrace.failures());
                 results.put("clock_aware_input_and_ack",CLOCK_AWARE);
                 Files.writeString(out.resolve("checks.json"),new GsonBuilder().setPrettyPrinting().create().toJson(results));
@@ -141,17 +180,30 @@ public final class LegacyClientProbe {
                 }
                 Files.writeString(out.resolve("item-model-audit.json"),new GsonBuilder().create().toJson(Map.of("registeredItems",blades,"missingItemModels",missing)));
                 require(missing.isEmpty(),"Missing blade models: "+missing);
-                Files.writeString(out.resolve("result.json"),"{\"status\":\"captured\",\"screenshots\":4,\"checks_passed\":true,\"entry\":\"MultiPlayerGameMode.useItem packets and integrated server\"}");
+                Files.writeString(out.resolve("result.json"),new GsonBuilder().create().toJson(Map.of("status","captured","screenshots",(FULL17?(LegacyRangeClientProbe.enabled()?23:8):4)+(LegacyArtsClientProbe.enabled()?LegacyArtsClientProbe.SCREENSHOTS:0)+(LegacyGaiaClientProbe.enabled()?LegacyGaiaClientProbe.COUNT:0),"checks_passed",true,"entry","MultiPlayerGameMode.useItem packets and integrated server")));
                 if(!LegacyTimingTrace.failures().isEmpty())Files.writeString(out.resolve("result.json"),new GsonBuilder().create().toJson(Map.of("status","diagnostic_failure","screenshots",4,"checks_passed",false,"original_assertion_failures",LegacyTimingTrace.failures())));
                 done=true;mc.stop();
-            }
-        }catch(Throwable e){done=true;com.mojang.logging.LogUtils.getLogger().error("SLASHBLADE_CLIENT_VERIFICATION_FAILED",e);try{Files.writeString(out.resolve("failure.txt"),e.toString());Files.writeString(out.resolve("checks.json"),new GsonBuilder().create().toJson(results));}catch(Exception ignored){}mc.stop();}
+            }else if(phase==14 && prepared){
+                ticks++;
+                if(ticks==5)mc.options.keyShift.setDown(true);
+                if(ticks==8){mc.options.keyUse.setDown(true);net.minecraft.client.KeyMapping.click(com.mojang.blaze3d.platform.InputConstants.Type.MOUSE.getOrCreate(1));}
+                if(ticks==35){
+                    require(LegacyProjectileGuard.barrierAvailable(mc.player,mc.player.getTicksUsingItem()),"actual held-input barrier unavailable");
+                    results.put("barrier_input_ticks",mc.player.getTicksUsingItem());capture="05-barrier.png";
+                }
+                if(ticks==40){mc.options.keyUse.setDown(false);mc.options.keyShift.setDown(false);barrierTested=true;phase=15;ticks=0;}
+            }else if(phase==15 && ++ticks>=20){phase=13;}
+            else if(phase==16 && LegacyRangeClientProbe.tick(mc,name->capture=name)){rangeTested=true;phase=13;}
+            else if(phase==17 && LegacyArtsClientProbe.tick(mc,name->capture=name)){artsTested=true;phase=13;}
+            else if(phase==18 && LegacyGaiaClientProbe.tick(mc,name->capture=name)){gaiaTested=true;phase=13;}
+        }catch(Throwable e){done=true;LegacyRangeClientProbe.release(mc);LegacyArtsClientProbe.release(mc);LegacyGaiaClientProbe.release(mc);results.put("legacy17_gaia_client",LegacyGaiaClientProbe.report());mc.options.keyUse.setDown(false);mc.options.keyShift.setDown(false);mc.options.keyUp.setDown(false);results.put("legacy17_range_client",LegacyRangeClientProbe.report());results.put("legacy17_arts_client",LegacyArtsClientProbe.report());results.put("damage_probe",LegacyDamageProbe.report());com.mojang.logging.LogUtils.getLogger().error("SLASHBLADE_CLIENT_VERIFICATION_FAILED",e);try{Files.writeString(out.resolve("failure.txt"),e.toString());Files.writeString(out.resolve("checks.json"),new GsonBuilder().create().toJson(results));}catch(Exception ignored){}mc.stop();}
     }
     private static void equip(Minecraft mc,String id){
         var s=mc.getSingleplayerServer();var p=s.getPlayerList().getPlayers().getFirst();
         var h=s.registryAccess().lookupOrThrow(SlashBladeDefinition.REGISTRY_KEY).listElements().filter(x->x.key().location().toString().equals(id)).findFirst().orElseThrow();
         var blade=h.value().getBlade(s.registryAccess());var state=BladeStateAccess.of(blade).orElseThrow();state.setComboSeq(mods.flammpfeil.slashblade.registry.ComboStateRegistry.NONE.getId());
         p.setItemInHand(InteractionHand.MAIN_HAND,blade);p.setItemInHand(InteractionHand.OFF_HAND,net.minecraft.world.item.ItemStack.EMPTY);p.experienceLevel=0;p.inventoryMenu.broadcastChanges();
+        LegacyDamageProbe.equip(p);
     }
     private static boolean captureClick(Minecraft mc){
         if(!CLOCK_AWARE)return ticks==4;
@@ -166,7 +218,7 @@ public final class LegacyClientProbe {
     private static boolean advanceClick(){return ticks>=8 && (!CLOCK_AWARE || sampled && System.nanoTime()-inputNs>=400_000_000L);}
     @SubscribeEvent public static void frame(RenderFrameEvent.Post event){
         if(capture==null || done)return;
-        try(var img=Screenshot.takeScreenshot(Minecraft.getInstance().getMainRenderTarget())){img.writeToFile(out.resolve(capture));capture=null;if(phase==1 || phase==6 || phase==10)phase++;}
+        try(var img=Screenshot.takeScreenshot(Minecraft.getInstance().getMainRenderTarget())){img.writeToFile(out.resolve(capture));captured.add(capture);capture=null;if(phase==1 || phase==6 || phase==10)phase++;}
         catch(Exception e){failure=e;}
     }
     private static void require(boolean v,String m){if(!v && !LegacyTimingTrace.observeFailure(m))throw new IllegalStateException(m);}

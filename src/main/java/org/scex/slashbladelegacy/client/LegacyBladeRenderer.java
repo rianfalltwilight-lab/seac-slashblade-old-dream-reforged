@@ -21,8 +21,10 @@ public final class LegacyBladeRenderer extends EntityRenderer<LegacySummonedBlad
     public LegacyBladeRenderer(EntityRendererProvider.Context context) { super(context); }
     @SubscribeEvent public static void register(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(SummonedBladeMode.BLADE.get(),LegacyBladeRenderer::new);
-        event.registerEntityRenderer(SummonedBladeMode.DRIVE.get(),mods.flammpfeil.slashblade.client.renderer.entity.DriveRenderer::new);
-        event.registerEntityRenderer(SummonedBladeMode.UPTHRUST.get(),mods.flammpfeil.slashblade.client.renderer.entity.SummonedSwordRenderer::new);
+        event.registerEntityRenderer(SummonedBladeMode.SWORD.get(),context->new LegacyPhantomRenderer<>(context));
+        event.registerEntityRenderer(SummonedBladeMode.DRIVE.get(),LegacyDriveRenderer::new);
+        event.registerEntityRenderer(SummonedBladeMode.ART.get(),LegacyArtRenderer::new);
+        event.registerEntityRenderer(SummonedBladeMode.UPTHRUST.get(),context->new LegacyPhantomRenderer<>(context));
     }
     @Override public ResourceLocation getTextureLocation(LegacySummonedBlade entity) {
         return ResourceLocation.withDefaultNamespace("textures/misc/white.png"); // untextured position/color render type
@@ -37,10 +39,9 @@ public final class LegacyBladeRenderer extends EntityRenderer<LegacySummonedBlad
         poses.mulPose(Axis.YP.rotationDegrees(spin));
         poses.scale(0.01f,0.01f,0.01f);
         int color=Math.abs(entity.getColor()),r=color>>16&255,g=color>>8&255,b=color&255;
-        var out=buffers.getBuffer(RenderType.lightning());
+        var out=buffers.getBuffer(entity.getColor()<0?LegacyPhantomRenderState.REVERSE:LegacyPhantomRenderState.NORMAL);
         for(int[] triangle:LegacyBladeMesh.FACES) {
-            for(int corner=0;corner<4;corner++) {
-                int index=triangle[Math.min(corner,2)];
+            for(int index:triangle) {
                 double[] point=LegacyBladeMesh.VERTICES[index];
                 out.addVertex(poses.last().pose(),(float)point[0],(float)point[1],(float)point[2]).setColor(r,g,b,255);
             }

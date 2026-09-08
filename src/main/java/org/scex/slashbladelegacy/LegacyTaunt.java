@@ -23,18 +23,17 @@ public final class LegacyTaunt {
     private LegacyTaunt(){}
     public static boolean handles(ItemStack blade) {
         return LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && LegacyCompat.isEnabled(LegacyCompat.LEGACY_TAUNT) && blade.getItem() instanceof ItemSlashBlade
-                && BladeStateAccess.of(blade).map(s->s.getComboRoot().equals(ComboStateRegistry.STANDBY.getId())).orElse(false)
+                && BladeStateAccess.of(blade).isPresent()
                 && !SwordType.from(blade).contains(SwordType.NOSCABBARD);
     }
     public static void fire(Player player,ItemStack blade) {
         if(!(player.level() instanceof ServerLevel level) || !handles(blade) || !player.onGround()
                 || player.isCrouching() || player.isShiftKeyDown())return;
         // Keep hostile/owner/team/blacklist tests, but not the sword's much shorter melee reach.
-        var targeting=TargetSelector.test.copy().range(0);
         var rank=player.getData(CapabilityConcentrationRank.RANK_POINT);
         int count=0;
         for(var mob:level.getEntitiesOfClass(Mob.class,player.getBoundingBox().inflate(10,5,10))) {
-            if(!mob.isAlive() || !targeting.test(player,mob) || !player.hasLineOfSight(mob) || !mob.hasLineOfSight(player))continue;
+            if(!mob.isAlive() || !LegacyTargets.attackable(player,mob) || !player.hasLineOfSight(mob) || !mob.hasLineOfSight(player))continue;
             mob.setTarget(player);
             if(mob.getTarget()!=player)continue; // Respect target-change cancellation/AI ownership rules.
             mob.setLastHurtByMob(player);
@@ -50,7 +49,7 @@ public final class LegacyTaunt {
             LegacyRank.awardAction(player,rank,"Taunt",.1f);
         }
         if(count>0) {
-            LegacyRank.awardAction(player,rank,"Noutou",-1);
+            LegacyRank.awardAction(player,rank,"Noutou",-1.5f);
             level.sendParticles(ParticleTypes.CRIT,player.getX(),player.getY()+1,player.getZ(),10,.4,.6,.4,.02);
         }
     }

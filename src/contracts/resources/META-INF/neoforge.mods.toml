@@ -5,3 +5,5 @@ license="MIT"
 modId="slashblade_legacy_contracts"
 version="0.1.0"
 displayName="SlashBlade legacy runtime contracts (not shipped)"
+[[mixins]]
+config="legacy17-load.mixins.json"

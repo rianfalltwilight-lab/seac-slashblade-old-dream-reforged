@@ -3,25 +3,23 @@ package org.scex.slashbladelegacy.mixin;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ItemStack;
-import mods.flammpfeil.slashblade.capability.slashblade.ISlashBladeState;
-import mods.flammpfeil.slashblade.registry.ComboStateRegistry;
-import mods.flammpfeil.slashblade.util.TimeValueHelper;
-import org.scex.slashbladelegacy.*;
+import org.scex.slashbladelegacy.client.LegacyHeldRenderer;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.injection.*;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Keep Resharpened's paired hardpoint/body assets. Retiming both avoids detached blades. */
 @Mixin(targets="mods.flammpfeil.slashblade.client.renderer.layers.LayerMainBlade",remap=false)
 public abstract class LegacyBladePoseMixin {
-    @Redirect(method="lambda$render$1",at=@At(value="INVOKE",target="Lmods/flammpfeil/slashblade/util/TimeValueHelper;getMSecFromTicks(D)D"))
-    private double legacyCompat$pairedMotion(double ticks,LivingEntity entity,float partial,PoseStack poses,
-                float motionYOffset,double motionScale,double modelScale,ItemStack stack,MultiBufferSource buffers,int light,ISlashBladeState state) {
-        var current=state.peekCurrentComboStateTicks(entity).getValue();
-        var move=LegacyCombat.move(current);
-        double speed=1;
-        if(LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && move!=LegacyMove.NONE && state.getComboRoot().equals(ComboStateRegistry.STANDBY.getId()))
-            speed=ComboStateRegistry.REGISTRY.get(current).getSpeed();
-        return TimeValueHelper.getMSecFromTicks(ticks*speed);
+    @Shadow public abstract void renderOffhandItem(PoseStack poses,MultiBufferSource buffers,int light,LivingEntity entity);
+    @Inject(method="render(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/world/entity/LivingEntity;FFFFFF)V",at=@At("HEAD"),cancellable=true)
+    private void legacyCompat$originalPose(PoseStack poses,MultiBufferSource buffers,int light,LivingEntity entity,
+                                          float limb,float amount,float partial,float age,float yaw,float pitch,CallbackInfo ci) {
+        if(!LegacyHeldRenderer.handles(entity))return;
+        // This framework carry renderer is static and does not consume VMD animation.
+        renderOffhandItem(poses,buffers,light,entity);
+        LegacyHeldRenderer.render(poses,buffers,light,entity,partial,true);
+        ci.cancel();
     }
 }

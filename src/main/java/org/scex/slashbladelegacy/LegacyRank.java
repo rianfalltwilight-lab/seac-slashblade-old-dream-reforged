@@ -10,24 +10,40 @@ import net.minecraft.world.entity.player.Player;
 public final class LegacyRank {
     private LegacyRank(){}
     public static boolean award(IConcentrationRank rank,DamageSource source) {
+        if(LegacyProjectileDamage.award(rank,source))return true;
+        if(LegacyDamage.ownsRankSource(source))return true;
         if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !LegacyCompat.isEnabled(LegacyCompat.LEGACY_RANK)
                 || !(source.getEntity() instanceof Player player) || player.level().isClientSide)return false;
         var state=BladeStateAccess.of(player.getMainHandItem()).orElse(null);
-        if(state==null || !state.getComboRoot().equals(ComboStateRegistry.STANDBY.getId()))return false;
+        if(state==null)return false;
         var move=LegacyCombat.move(state.getComboSeq());
         if(move==LegacyMove.NONE || source.getDirectEntity()!=player)return false;
         if(!source.is(net.minecraft.world.damagesource.DamageTypes.PLAYER_ATTACK)
                 && !source.is(net.minecraft.world.damagesource.DamageTypes.MOB_ATTACK))return false;
+        awardMove(player,rank,move);
+        return true;
+    }
+    public static void awardMove(Player player,IConcentrationRank rank,LegacyMove move) {
         float factor=switch(move) {
             case BATTOU,A_KIRIOROSI_FINISH,CALIBUR,HELM_BRAKER -> .5f;
             case KIRIOROSI,A_KIRIAGE -> .4f;
             case SLASH_EDGE,RETURN_EDGE -> .2f;
             case S_SLASH_BLADE -> -.2f;
-            case NOUTOU -> 0;
+            case SLASH_DIM -> .6f;
+            case NONE,NOUTOU -> 0;
             default -> .3f;
         };
         awardAction(player,rank,move.name(),factor);
-        return true;
+    }
+    public static void hurt(net.minecraft.world.entity.LivingEntity victim,IConcentrationRank rank,DamageSource source) {
+        if(!(victim instanceof Player) || victim.level().isClientSide)return;
+        if(source.is(net.minecraft.world.damagesource.DamageTypes.THORNS) || source.is(net.minecraft.tags.DamageTypeTags.IS_FALL)
+                || source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_ARMOR) && source.getEntity()!=null)return;
+        if(source.getEntity() instanceof net.minecraft.world.entity.LivingEntity attacker && attacker.getLastHurtMobTimestamp()==attacker.tickCount)return;
+        long now=victim.level().getGameTime();
+        // Damage after a long idle period clears the raw stored rank, including the preserved band.
+        long next=now-rank.getLastUpdate()>200?0:Math.max(0,rank.getRawRankPoint()-2*rank.getUnitCapacity());
+        rank.setRawRankPoint(next);rank.setLastUpdte(now);rank.addRankPoint(victim,0);
     }
     public static void awardAction(Player player,IConcentrationRank rank,String action,float factor) {
         if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_RANK) || factor==0)return;

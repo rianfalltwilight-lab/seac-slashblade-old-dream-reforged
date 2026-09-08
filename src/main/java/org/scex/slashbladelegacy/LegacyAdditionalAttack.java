@@ -14,7 +14,7 @@ public final class LegacyAdditionalAttack {
     public static void markCharged(net.minecraft.world.entity.LivingEntity user,net.minecraft.resources.ResourceLocation result) {
         if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || result==null || result.equals(ComboStateRegistry.NONE.getId()))return;
         var blade=user.getMainHandItem();var state=BladeStateAccess.of(blade).orElse(null);
-        if(state==null || !state.getComboRoot().equals(ComboStateRegistry.STANDBY.getId()))return;
+        if(state==null)return;
         var data=blade.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag();data.putBoolean(CHARGED,true);
         blade.set(DataComponents.CUSTOM_DATA,CustomData.of(data));
     }
@@ -29,11 +29,11 @@ public final class LegacyAdditionalAttack {
                 if(state.getProudSoulCount()>=10)state.setProudSoulCount(state.getProudSoulCount()-10);
                 else wear(blade,5,player);
                 if(blade.isEmpty())return;
-                spawn(player,move,.75f,false,false);
+                spawn(player,move,.75f,true,false); // r87 setter(false) actually enables multi-hit.
             }
         }
-        if(move==LegacyMove.S_SLASH_BLADE || move==LegacyMove.FORCE6 || (move==LegacyMove.FORCE5 && rank>4))
-            spawn(player,move,.1f,rank<=5,true); // Original variable name is misleading: <=5 actually enables multi-hit.
+        if(move==LegacyMove.S_SLASH_BLADE)
+            spawn(player,move,.05f,rank>5,true); // r87 setter(rank<=5) is the single-hit flag.
     }
     public static void wear(net.minecraft.world.item.ItemStack blade,int amount,Player player) {
         if(player.level() instanceof net.minecraft.server.level.ServerLevel level) {
@@ -50,7 +50,8 @@ public final class LegacyAdditionalAttack {
         float damage=state.getBaseAttackModifier();
         if(LegacyCombat.rank(player)>=5)damage+=state.getAttackAmplifier()*(.5f+power/5f);
         var drive=new LegacyDrive(SummonedBladeMode.DRIVE.get(),player.level());
-        drive.initialize(player,blade,damage,speed,LegacyCombat.slashRoll(move),multi);
+        drive.initialize(player,blade,damage,speed,90-(finisher?Math.abs(move.direction):move.direction),multi);
+        drive.setDimension(finisher && SwordType.from(blade).contains(SwordType.FIERCEREDGE));
         player.level().addFreshEntity(drive);
     }
 }

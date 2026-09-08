@@ -41,7 +41,7 @@ public final class LegacyCompat {
         LEGACY_CHARGE = builder.comment("Restore legacy charge cue at tick 15; release at 16-18 is just, 19+ normal. Does not replace the modern combo graph.").define("restoreLegacyChargeWindow", true);
         GAIA_TARGETING = builder.comment("Allow Botania Gaia Guardian through SlashBlade's Enemy-only filter without requiring a prior hit. Does not alter Gaia damage rules.").define("fixGaiaTargeting", true);
         HOSTILE_TARGETING = builder.comment("Preserve attacker-aware target filtering when copied for area attacks; allow audited additional_hostile_targets tag. Does not automatically attack all MONSTER category entities.").define("fixHostileTargeting", true);
-        LEGACY_COMBAT = builder.comment("Use the legacy 1.12.2 combo graph and immediate melee for the default combo root. Development candidate; visual and advanced attack parity pending.").define("restoreLegacyCombat", true);
+        LEGACY_COMBAT = builder.comment("Use the 1.7.10 r87 combo graph and immediate melee for all blades, retaining registered addon identities. Development candidate; acceptance pending.").define("restoreLegacyCombat", true);
         SHEATHING_REPAIR = builder.comment("Defer default-root kill XP repair until successful legacy sheathing; requires 1000 proud souls. No extra soul award.").define("restoreSheathingRepair", true);
         LEGACY_RANK=builder.comment("Restore legacy melee rank awards and repeat-move diminishing returns; preserve native rank HUD and networking.").define("restoreLegacyRank",true);
         LEGACY_TAUNT=builder.comment("Completed stationary sheathing taunts visible hostile mobs within legacy 10/5/10 expansion; 30s Strength II, Speed II, Resistance I, particles, sound and rank.").define("restoreLegacyTaunt",true);
@@ -65,13 +65,21 @@ public final class LegacyCompat {
         NeoForge.EVENT_BUS.addListener(EventPriority.LOW, LegacyCompat::reach);
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST, LegacyCompat::validateMelee);
         SummonedBladeMode.ENTITIES.register(modBus);
+        LegacyArts.initialize();
         LegacyCombat.COMBOS.register(modBus);
+        LegacyArts.ARTS.register(modBus);
         NeoForge.EVENT_BUS.addListener(EventPriority.LOW, LegacyCombat::nextCombo);
         NeoForge.EVENT_BUS.addListener(LegacyCombat::tick);
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) -> {LegacyJustGuard.clear(event.getEntity());LegacyRangeAttack.clear(event.getEntity());});
+        NeoForge.EVENT_BUS.addListener(LegacyFreeze::tick);
+        NeoForge.EVENT_BUS.addListener(LegacyArtEntity::teleport);
         NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, LegacySheathingRepair::timeout);
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, LegacyTaunt::experience);
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST, SummonedBladeMode::interact);
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST, SummonedBladeMode::attackStand);
+        NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, LegacyBladeSouls::stand);
+        NeoForge.EVENT_BUS.addListener(LegacyBladeSouls::tick);
+        NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, LegacyEnchantments::stand);
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, SummonedBladeMode::input);
         NeoForge.EVENT_BUS.addListener(SummonedBladeMode::tooltip);
     }
@@ -82,12 +90,21 @@ public final class LegacyCompat {
         if (!(stack.getItem() instanceof ItemSlashBlade)
                 || !BladeStateAccess.of(stack).map(s -> s.onClick()).orElse(false)) return;
         var target = event.getTarget();
+        // Only a synchronous, exact target/bounds match may use the old area rule.
+        // External modern melee calls still receive their original range/LOS validation.
+        if (isEnabled(LEGACY_COMBAT) && LegacyDamage.scoped(player, target, stack)) return;
         double reach = mods.flammpfeil.slashblade.util.TargetSelector.getResolvedReach(player);
         if (!Double.isFinite(reach) || reach <= 0 || !player.hasLineOfSight(target)
                 || mods.flammpfeil.slashblade.util.TargetSelector.distanceSqrBetweenEntity(target,player) >= reach*reach)
             event.setCanceled(true);
     }
     private static void damage(SlashBladeEvent.UpdateAttackEvent event) {
+        if (isEnabled(LEGACY_COMBAT)) {
+            var state = event.getSlashBladeState();
+            event.setNewDamage(state.isBroken() || state.isSealed() ? 2
+                    : state.getBaseAttackModifier() + state.getAttackAmplifier());
+            return;
+        }
         if (!isEnabled(BROKEN_DAMAGE) || !(event.getBlade().getItem() instanceof ItemSlashBlade)
                 || !event.getSlashBladeState().isBroken()) return;
         // Exact current formula gate; leave overrides from other mods untouched.

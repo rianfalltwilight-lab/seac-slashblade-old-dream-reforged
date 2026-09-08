@@ -24,6 +24,7 @@ public abstract class GaiaTargetingMixin {
             require=1, expect=1)
     private Object legacyCompat$gaiaIsHostile(Object original, LivingEntity target) {
         return org.scex.slashbladelegacy.HostileTargeting.isAdditionalHostile(target)
+                || LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && org.scex.slashbladelegacy.LegacyTargets.defaultAttackable(target)
                 ? Boolean.TRUE : original;
     }
 }

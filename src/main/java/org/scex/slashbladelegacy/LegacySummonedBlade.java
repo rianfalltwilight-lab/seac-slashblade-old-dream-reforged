@@ -22,7 +22,7 @@ import net.minecraft.util.Mth;
 import java.util.Comparator;
 import java.util.UUID;
 
-/** Legacy flight parameters, modern projectile collision/packet machinery.
+/** r87 flight/collision with framework packets; the optional pre-r87 adapter remains when full legacy is disabled.
  * Server-only damage; source identity never substitutes the currently equipped blade.
  */
 public final class LegacySummonedBlade extends EntityAbstractSummonedSword {
@@ -35,6 +35,8 @@ public final class LegacySummonedBlade extends EntityAbstractSummonedSword {
     private int flightAge,attachedAge;
     private boolean ended;
     private float aimYaw,aimPitch;
+    private Vec3 attachedOffset=Vec3.ZERO;
+    private float attachedYaw,attachedPitch;
     public LegacySummonedBlade(EntityType<? extends Projectile> type,Level level) {
         super(type,level); setNoGravity(true); setPierce((byte)0);
     }
@@ -55,16 +57,18 @@ public final class LegacySummonedBlade extends EntityAbstractSummonedSword {
     public void initialize(Player owner,int power,int color,UUID source,Entity locked) {
         setOwner(owner); sourceId=source; setDamage(power); setColor(color);
         int pattern=owner.getRandom().nextInt(6), side=pattern<3?1:-1, height=1-pattern%3;
-        float[] rolls={210,180,150,-30,0,30}; setRoll(rolls[pattern]);
+        float[] rolls={210,-180,150,-30,0,30}; setRoll(rolls[pattern]);
         Vec3 offset=Vec3.directionFromRotation(0,owner.getYRot()-90*side)
                 .add(0,height*0.5,0).subtract(owner.getLookAngle());
-        setPos(owner.getX()+offset.x,owner.getY()+owner.getEyeHeight()*0.5+offset.y,owner.getZ()+offset.z);
+        setPos(owner.getX()+offset.x,owner.getY()+(LegacyRangeAttack.enabled()?0:owner.getEyeHeight()*.5)+offset.y,owner.getZ()+offset.z);
         aimYaw=owner.getYRot(); aimPitch=owner.getXRot();
         setDeltaMovement(Vec3.directionFromRotation(aimPitch,aimYaw).scale(1.75));
-        if(locked instanceof LivingEntity living && eligible(living) && distanceToSqr(living)<225) targetId=locked.getUUID();
+        if(LegacyRangeAttack.enabled())orientLegacy();
+        if(locked instanceof LivingEntity living && eligible(living) && (LegacyRangeAttack.enabled() || distanceToSqr(living)<225)) targetId=locked.getUUID();
     }
     private ItemStack sourceBlade() {
         if (!(getOwner() instanceof Player player) || sourceId==null) return ItemStack.EMPTY;
+        if(LegacyRangeAttack.enabled())return LegacyRangeAttack.sourceBlade(player,sourceId);
         ItemStack result=ItemStack.EMPTY;
         for(int i=0;i<player.getInventory().getContainerSize();i++) {
             var candidate=player.getInventory().getItem(i);
@@ -79,9 +83,11 @@ public final class LegacySummonedBlade extends EntityAbstractSummonedSword {
         return result;
     }
     private boolean eligible(LivingEntity target) {
+        if(LegacyRangeAttack.enabled())return getOwner() instanceof Player player && LegacyTargets.attackable(player,target);
         return getOwner() instanceof LivingEntity owner && owner.isAlive() && target.isAlive()
                 && target!=owner && owner.level()==level() && owner.distanceToSqr(target)<=64*64
-                && owner.hasLineOfSight(target) && TargetSelector.test.test(owner,target);
+                && owner.hasLineOfSight(target) && (LegacyRangeAttack.enabled() && owner instanceof Player player
+                    ?LegacyTargets.attackable(player,target):TargetSelector.test.test(owner,target));
     }
     private boolean clearPath(Entity target) {
         return level().clip(new ClipContext(position(),target.getBoundingBox().getCenter(),
@@ -89,6 +95,7 @@ public final class LegacySummonedBlade extends EntityAbstractSummonedSword {
     }
     @Override public void tick() {
         if(isRemoved() || ended) return;
+        if(LegacyRangeAttack.enabled()){legacyTick();return;}
         if(!level().isClientSide) {
             if(!(getOwner() instanceof LivingEntity owner) || !owner.isAlive() || owner.level()!=level()
                     || distanceToSqr(owner)>64*64 || sourceBlade().isEmpty()) { discard(); return; }
@@ -97,7 +104,7 @@ public final class LegacySummonedBlade extends EntityAbstractSummonedSword {
                 if(!(attached instanceof LivingEntity living) || !eligible(living)) { discard(); return; }
                 if(getHitEntity()==null) setHitEntity(attached);
                 setPos(attached.getX(),attached.getY()+attached.getEyeHeight()*0.5,attached.getZ());
-                if(++attachedAge>=200) { strike(living,Math.max(1,getDamage()/2)); burst(); return; }
+                if(++attachedAge>=200) { strike(living,Math.max(1,getDamage()/2),true); burst(); return; }
                 setDelay(210); // own persisted 200-tick timer, not superclass default fuse
             } else if(++flightAge>=100) { burst(); return; }
             else if(flightAge>10) home();
@@ -108,6 +115,74 @@ public final class LegacySummonedBlade extends EntityAbstractSummonedSword {
         super.tick();
         // Base projectile applies 0.99 drag; the original summoned blade deliberately does not.
         if(attachedId==null && !isRemoved()) setDeltaMovement(motion);
+    }
+    private void legacyTick() {
+        baseTick();if(level().isClientSide)return;
+        if(!(getOwner() instanceof Player owner) || !owner.isAlive() || sourceBlade().isEmpty()){discard();return;}
+        yRotO=getYRot();xRotO=getXRot();
+        if(attachedId!=null) {
+            var entity=((ServerLevel)level()).getEntity(attachedId);
+            if(!(entity instanceof LivingEntity target) || !eligible(target)){discard();return;}
+            if(getHitEntity()==null)setHitEntity(target);
+            double yaw=Math.toRadians(target.getYRot());
+            setPos(target.position().add(attachedOffset.x*Math.cos(yaw)-attachedOffset.z*Math.sin(yaw),attachedOffset.y,attachedOffset.x*Math.sin(yaw)+attachedOffset.z*Math.cos(yaw)));
+            setYRot(target.getYRot()+attachedYaw);setXRot(target.getXRot()+attachedPitch);
+            if(++attachedAge>=200){strike(target,getDamage()/2,true);burst();}return;
+        }
+        entityData.set(AGE,++flightAge);
+        if(flightAge>=100){burst();return;}
+        var impact=legacyCollision(owner);
+        if(impact!=null && !net.neoforged.neoforge.event.EventHooks.onProjectileImpact(this,impact)) {
+            if(LegacyProjectileGuard.destructible(owner,impact.getEntity())){LegacyProjectileGuard.destruct(owner,impact.getEntity(),(float)getDamage());burst();return;}
+            onHitEntity(impact);if(attachedId!=null || isRemoved())return;
+        }
+        homeLegacy(owner);
+        if(flightAge>10)setPos(position().add(getDeltaMovement()));
+    }
+    private EntityHitResult legacyCollision(Player owner) {
+        var start=position();var end=start.add(getDeltaMovement());
+        var block=level().clip(new ClipContext(start,end,ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,this));
+        // The old base clips the entity ray only when the block below its hit point has a collision box.
+        // SB ignores the block impact itself and keeps its noClip movement through terrain.
+        if(block.getType()!=HitResult.Type.MISS) {
+            var below=net.minecraft.core.BlockPos.containing(block.getLocation()).below();
+            if(!level().getBlockState(below).getCollisionShape(level(),below).isEmpty())end=block.getLocation();
+        }
+        var candidates=level().getEntities(this,getBoundingBox().expandTowards(getDeltaMovement()).inflate(1));
+        for(boolean destruct:new boolean[]{true,false}) {
+            EntityHitResult result=null;double distance=Double.MAX_VALUE;
+            for(var candidate:candidates) {
+                var parent=candidate instanceof net.neoforged.neoforge.entity.PartEntity<?> part?part.getParent():candidate;
+                if(destruct?!LegacyProjectileGuard.destructible(owner,candidate):!(parent instanceof LivingEntity living) || !eligible(living))continue;
+                var box=candidate.getBoundingBox().inflate(.3);
+                var hit=box.contains(end)?java.util.Optional.of(end):box.clip(end,start);
+                if(hit.isEmpty() && box.contains(start))hit=java.util.Optional.of(start);
+                if(hit.isPresent() && end.distanceToSqr(hit.get())<distance){distance=end.distanceToSqr(hit.get());result=new EntityHitResult(parent,hit.get());}
+            }
+            if(result!=null)return result;
+        }
+        return null;
+    }
+    private void homeLegacy(Player owner) {
+        if(targetId==null) {
+            var target=level().getEntitiesOfClass(LivingEntity.class,getBoundingBox().inflate(15),e->eligible(e) && owner.hasLineOfSight(e) && distanceToSqr(e)<225)
+                    .stream().min(Comparator.comparingDouble(this::distanceToSqr)).orElse(null);
+            if(target!=null)targetId=target.getUUID();return; // r87 uses the target ID captured before acquisition this tick.
+        }
+        if(flightAge<=10)return;
+        var entity=((ServerLevel)level()).getEntity(targetId);
+        if(!(entity instanceof LivingEntity target) || !eligible(target))return;
+        var delta=target.getEyePosition().subtract(getEyePosition());
+        float yaw=(float)Math.toDegrees(Math.atan2(-delta.x,delta.z)),pitch=(float)-Math.toDegrees(Math.atan2(delta.y,delta.horizontalDistance()));
+        float dy=Mth.clamp(Mth.wrapDegrees(yaw-aimYaw),-10,10),dp=Mth.clamp(Mth.wrapDegrees(pitch-aimPitch),-10,10);
+        aimYaw+=dy;aimPitch+=dp;
+        double speed=(.75*(1-Math.min((Math.abs(dy)+Math.abs(dp))/10,.75))+getDeltaMovement().length()*9)/10;
+        setDeltaMovement(Vec3.directionFromRotation(aimPitch,aimYaw).scale(speed));orientLegacy();
+    }
+    private void orientLegacy() {
+        var vector=getDeltaMovement();if(vector.lengthSqr()<1e-12)return;
+        setYRot((float)Math.toDegrees(Math.atan2(vector.x,vector.z)));setXRot((float)Math.toDegrees(Math.atan2(vector.y,vector.horizontalDistance())));
+        yRotO=getYRot()-Mth.wrapDegrees(getYRot()-yRotO);xRotO=getXRot()-Mth.wrapDegrees(getXRot()-xRotO);
     }
     private void home() {
         LivingEntity target=targetId==null?null:(((ServerLevel)level()).getEntity(targetId) instanceof LivingEntity e?e:null);
@@ -145,21 +220,28 @@ public final class LegacySummonedBlade extends EntityAbstractSummonedSword {
     }
     @Override protected void onHitEntity(EntityHitResult result) {
         if(level().isClientSide || attachedId!=null || isRemoved()) return;
-        if(result.getEntity() instanceof LivingEntity target && eligible(target) && clearPath(target)) {
+        if(result.getEntity() instanceof LivingEntity target && eligible(target) && (LegacyRangeAttack.enabled() || clearPath(target))) {
             if(strike(target,Math.max(1,getDamage()))) {
                 attachedId=target.getUUID(); attachedAge=0; setHitEntity(target); setDelay(210);
+                attachedOffset=position().subtract(target.position());attachedYaw=getYRot()-target.getYRot();attachedPitch=getXRot()-target.getXRot();
                 entityData.set(SPIN,(level().getGameTime()%6+random.nextFloat())*60);
                 setDeltaMovement(Vec3.ZERO);
             }
         }
     }
     @Override protected void onHitBlock(BlockHitResult hit) {
+        if(LegacyRangeAttack.enabled())return;
         if(!level().isClientSide) { setPos(hit.getLocation().subtract(getDeltaMovement().normalize().scale(0.02))); burst(); }
     }
     private boolean strike(LivingEntity target,double damage) {
-        if(level().isClientSide || !eligible(target) || !clearPath(target)) return false;
+        return strike(target,damage,false);
+    }
+    private boolean strike(LivingEntity target,double damage,boolean breaking) {
+        if(level().isClientSide || !eligible(target) || !LegacyRangeAttack.enabled() && !clearPath(target)) return false;
         var blade=sourceBlade();
         if(blade.isEmpty() || !(getOwner() instanceof LivingEntity owner)) return false;
+        if(LegacyRangeAttack.enabled() && owner instanceof Player player)
+            return LegacyProjectileDamage.strike(this,player,blade,target,damage,breaking,.1,false);
         target.invulnerableTime=0;
         float amount=(float)(damage*AttackManager.getSlashBladeDamageScale(owner)
                 *mods.flammpfeil.slashblade.SlashBladeConfig.SLASHBLADE_DAMAGE_MULTIPLIER.get());
@@ -173,7 +255,7 @@ public final class LegacySummonedBlade extends EntityAbstractSummonedSword {
         ended=true;
         for(var target:level().getEntitiesOfClass(LivingEntity.class,getBoundingBox().inflate(1))) strike(target,1);
         level().playSound(null,blockPosition(),net.minecraft.sounds.SoundEvents.GLASS_BREAK,
-                net.minecraft.sounds.SoundSource.PLAYERS,0.5f,1.2f);
+                net.minecraft.sounds.SoundSource.PLAYERS,LegacyRangeAttack.enabled()?.25f:.5f,LegacyRangeAttack.enabled()?1.6f:1.2f);
         ((ServerLevel)level()).sendParticles(net.minecraft.core.particles.ParticleTypes.CRIT,getX(),getY(),getZ(),8,0.2,0.2,0.2,0.05);
         discard();
     }
@@ -186,6 +268,7 @@ public final class LegacySummonedBlade extends EntityAbstractSummonedSword {
         tag.putInt("LegacyFlightAge",flightAge);tag.putInt("LegacyAttachedAge",attachedAge);
         tag.putFloat("LegacyYaw",aimYaw);tag.putFloat("LegacyPitch",aimPitch);
         tag.putFloat("LegacyRoll",getRoll());tag.putFloat("LegacySpin",frozenSpin());
+        tag.putDouble("LegacyHitX",attachedOffset.x);tag.putDouble("LegacyHitY",attachedOffset.y);tag.putDouble("LegacyHitZ",attachedOffset.z);tag.putFloat("LegacyHitYaw",attachedYaw);tag.putFloat("LegacyHitPitch",attachedPitch);
     }
     @Override public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
@@ -199,5 +282,9 @@ public final class LegacySummonedBlade extends EntityAbstractSummonedSword {
         aimPitch=Float.isFinite(aimPitch)?Mth.clamp(aimPitch,-90,90):0;
         tickCount=flightAge; setNoGravity(true);
         setRoll(tag.getFloat("LegacyRoll"));entityData.set(SPIN,tag.getFloat("LegacySpin"));entityData.set(AGE,flightAge);
+        attachedOffset=new Vec3(finite(tag.getDouble("LegacyHitX")),finite(tag.getDouble("LegacyHitY")),finite(tag.getDouble("LegacyHitZ")));
+        attachedYaw=(float)finite(tag.getFloat("LegacyHitYaw"));attachedPitch=(float)finite(tag.getFloat("LegacyHitPitch"));
+        if(!Float.isFinite(getRoll()))setRoll(0);if(!Float.isFinite(frozenSpin()))entityData.set(SPIN,-1f);
     }
+    private static double finite(double value){return Double.isFinite(value)?value:0;}
 }

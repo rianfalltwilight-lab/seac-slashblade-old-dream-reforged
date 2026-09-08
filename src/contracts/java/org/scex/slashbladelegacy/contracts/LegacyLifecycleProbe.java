@@ -33,6 +33,7 @@ public final class LegacyLifecycleProbe {
     private static String capture;
     private static final Map<String,Object> report=new LinkedHashMap<>();
     private static final List<Map<String,Object>> tags=new ArrayList<>();
+    private static final Map<Integer,String> persisted=new LinkedHashMap<>();
     private static boolean enabled(){return Boolean.getBoolean("scex.legacy.lifecycleProbe");}
     @SubscribeEvent public static void tick(ClientTickEvent.Post event){
         if(!enabled() || done)return;
@@ -63,7 +64,10 @@ public final class LegacyLifecycleProbe {
             }else if(phase==8 && mc.level!=null && mc.player!=null && mc.screen==null && ++ticks>=40){
                 require(LegacyCompat.SPEC.isLoaded(),"Reopened config did not load");require(unloadedQueries>=2,"Unloaded tag tooltip path was not exercised");
                 phase=9;prepared=false;auditLoaded(mc,"reopened_world");
-            }else if(phase==9 && prepared){capture="03-reopened-world.png";phase=10;}
+            }else if(phase==9 && prepared && mc.level!=null && mc.player!=null && mc.screen==null
+                    && mc.level.dimension().equals(Level.OVERWORLD) && ++ticks>=60){
+                report.put("client_returned_to_overworld",true);capture="03-reopened-world.png";phase=10;
+            }
             else if(phase==11){
                 require(mc.getItemRenderer().getModel(blade(mc.level.registryAccess()),mc.level,mc.player,0)!=mc.getModelManager().getMissingModel(),"Blade model missing");
                 report.put("world_reopened",true);report.put("unloaded_tooltip_queries",unloadedQueries);report.put("tag_callbacks",tags);
@@ -92,15 +96,35 @@ public final class LegacyLifecycleProbe {
         var stack=blade(mc.getSingleplayerServer().registryAccess());var state=BladeStateAccess.of(stack).orElseThrow();state.setBroken(false);
         double healthy=amount(stack,net.minecraft.world.entity.ai.attributes.Attributes.ENTITY_INTERACTION_RANGE);state.setBroken(true);state.setDamage(state.getMaxDamage()-1);
         var tag=new net.minecraft.nbt.CompoundTag();tag.putBoolean(SummonedBladeMode.MODE,true);stack.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA,net.minecraft.world.item.component.CustomData.of(tag));
-        boolean reach=LegacyCompat.BROKEN_REACH.get(),damage=LegacyCompat.BROKEN_DAMAGE.get(),sb=LegacyCompat.SUMMONED_BLADE.get();
+        boolean reach=LegacyCompat.BROKEN_REACH.get(),damage=LegacyCompat.BROKEN_DAMAGE.get(),sb=LegacyCompat.SUMMONED_BLADE.get(),combat=LegacyCompat.LEGACY_COMBAT.get();
         try{
+            LegacyCompat.LEGACY_COMBAT.set(false);
             LegacyCompat.BROKEN_REACH.set(false);LegacyCompat.BROKEN_DAMAGE.set(false);LegacyCompat.SUMMONED_BLADE.set(false);
             double nativeReach=amount(stack,net.minecraft.world.entity.ai.attributes.Attributes.ENTITY_INTERACTION_RANGE);
             require(nativeReach==1.25 && amount(stack,net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE)==-1.5 && !SummonedBladeMode.enabled(stack),"Loaded false config ignored");
             LegacyCompat.BROKEN_REACH.set(true);LegacyCompat.BROKEN_DAMAGE.set(true);LegacyCompat.SUMMONED_BLADE.set(true);
             require(amount(stack,net.minecraft.world.entity.ai.attributes.Attributes.ENTITY_INTERACTION_RANGE)==healthy && amount(stack,net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE)==2 && SummonedBladeMode.enabled(stack),"Loaded true config ignored");
             report.put(key,Map.of("config_loaded",LegacyCompat.SPEC.isLoaded(),"live_false_true_settings_verified",true,"native_broken_reach",nativeReach,"restored_reach",healthy));
-        }finally{LegacyCompat.BROKEN_REACH.set(reach);LegacyCompat.BROKEN_DAMAGE.set(damage);LegacyCompat.SUMMONED_BLADE.set(sb);}
+        }finally{LegacyCompat.BROKEN_REACH.set(reach);LegacyCompat.BROKEN_DAMAGE.set(damage);LegacyCompat.SUMMONED_BLADE.set(sb);LegacyCompat.LEGACY_COMBAT.set(combat);}
+        var server=mc.getSingleplayerServer();var player=server.getPlayerList().getPlayers().getFirst();
+        if(key.equals("first_world")) {
+            player.getInventory().clearContent();player.experienceLevel=0;player.totalExperience=0;player.getInventory().selected=0;int slot=9;
+            for(var definition:server.registryAccess().lookupOrThrow(SlashBladeDefinition.REGISTRY_KEY).listElements().toList()) {
+                if(!Set.of("prinegorerouse","si_slashblade").contains(definition.key().location().getNamespace()))continue;
+                var item=definition.value().getBlade(server.registryAccess());var bladeState=BladeStateAccess.of(item).orElseThrow();bladeState.setRefine(123+slot);bladeState.setProudSoulCount(4321+slot);bladeState.setKillCount(1050+slot);item.setDamageValue(17);
+                var data=item.getOrDefault(net.minecraft.core.component.DataComponents.CUSTOM_DATA,net.minecraft.world.item.component.CustomData.EMPTY).copyTag();data.putBoolean(SummonedBladeMode.MODE,true);item.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA,net.minecraft.world.item.component.CustomData.of(data));
+                if(definition.key().location().getNamespace().equals("si_slashblade"))item.getItem().getClass().getMethod("reconcile",ItemStack.class).invoke(item.getItem(),item);
+                player.getInventory().setItem(slot,item);persisted.put(slot,item.save(server.registryAccess()).toString());slot++;
+            }
+            require(persisted.size()==26,"All 26 addon blades must be saved");report.put("saved_addon_count",persisted.size());player.inventoryMenu.broadcastChanges();
+        } else {
+            for(var entry:persisted.entrySet())require(player.getInventory().getItem(entry.getKey()).save(server.registryAccess()).toString().equals(entry.getValue()),"Addon persisted stack changed in slot "+entry.getKey());
+            report.put("addon_roundtrip_exact_components",persisted.size());
+            var originalLevel=player.serverLevel();var position=player.position();var nether=server.getLevel(Level.NETHER);require(nether!=null,"Nether available");
+            player.teleportTo(nether,12,75,12,0,0);require(player.level().dimension().equals(Level.NETHER),"actual server dimension transfer");
+            for(var entry:persisted.entrySet())require(player.getInventory().getItem(entry.getKey()).save(server.registryAccess()).toString().equals(entry.getValue()),"Addon component changed across dimension");
+            player.teleportTo(originalLevel,position.x,position.y,position.z,0,0);report.put("dimension_transfer_exact_components",persisted.size());
+        }
         prepared=true;
     }catch(Throwable e){failure=e;}});}
     private static double amount(ItemStack s,net.minecraft.core.Holder<net.minecraft.world.entity.ai.attributes.Attribute> a){return s.getAttributeModifiers().modifiers().stream().filter(e->e.attribute().equals(a)).mapToDouble(e->e.modifier().amount()).sum();}

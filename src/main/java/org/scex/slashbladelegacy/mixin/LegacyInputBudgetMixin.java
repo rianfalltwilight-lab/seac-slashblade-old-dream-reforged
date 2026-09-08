@@ -15,18 +15,32 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Budget committed player click transitions, never virtual queries or scripted charge actions. */
+/** Own r87 input resolution; retain events and budget committed clicks, not virtual/SA calls. */
 @Mixin(value=ISlashBladeState.class,remap=false)
 public interface LegacyInputBudgetMixin {
     @Inject(method="progressCombo(Lnet/minecraft/world/entity/LivingEntity;Z)Lnet/minecraft/resources/ResourceLocation;",
             at=@At("HEAD"),cancellable=true)
     private void legacyCompat$budget(LivingEntity user,boolean virtual,CallbackInfoReturnable<ResourceLocation> result) {
-        if(virtual || !LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !(user instanceof ServerPlayer player))return;
+        if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !(user instanceof net.minecraft.world.entity.player.Player player))return;
         var blade=player.getMainHandItem();var state=(ISlashBladeState)(Object)this;
-        if(BladeStateAccess.of(blade).isEmpty() || !state.getComboRoot().equals(ComboStateRegistry.STANDBY.getId())
+        if(BladeStateAccess.of(blade).isEmpty()
                 || SwordType.from(blade).contains(SwordType.NOSCABBARD))return;
         var commands=player.getData(CapabilityInputState.INPUT_STATE).getCommands();
         if(!commands.contains(InputCommand.R_CLICK) && !commands.contains(InputCommand.L_CLICK))return;
-        if(!org.scex.slashbladelegacy.LegacyInputBudget.accept(player))result.setReturnValue(ComboStateRegistry.NONE.getId());
+        if(!virtual && player instanceof ServerPlayer serverPlayer && !org.scex.slashbladelegacy.LegacyInputBudget.accept(serverPlayer)) {
+            result.setReturnValue(ComboStateRegistry.NONE.getId());return;
+        }
+        var currentId=state.resolvCurrentComboState(player);
+        var current=ComboStateRegistry.REGISTRY.get(currentId);
+        if(current==null){result.setReturnValue(ComboStateRegistry.NONE.getId());return;}
+        var event=new mods.flammpfeil.slashblade.event.SlashBladeEvent.NextComboEvent(blade,state,player,current.getNext(player));
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(event);
+        var next=event.getNextCombo();
+        if(next==null || !ComboStateRegistry.REGISTRY.containsKey(next) || next.equals(currentId)) {
+            result.setReturnValue(ComboStateRegistry.NONE.getId());return;
+        }
+        // A foreign comboRoot priority must not silently override the accepted old input graph.
+        if(!virtual && player.getMainHandItem()==blade)state.updateComboSeq(player,next);
+        result.setReturnValue(next);
     }
 }

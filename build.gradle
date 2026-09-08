@@ -2,7 +2,7 @@ plugins {
     id 'java-library'
     id 'net.neoforged.moddev' version '2.0.144'
 }
-version = '0.1.0-dev.13'
+version = '0.2.0-dev.1'
 group = 'org.scex'
 base { archivesName = 'SEAC-SlashBlade-Old-Dream-Reforged-1.21.1' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
@@ -20,13 +20,6 @@ repositories {
     }
 }
 
-sourceSets {
-    contracts { java { exclude 'org/scex/slashbladelegacy/contracts/LegacyPersistenceProbe.java' } }
-    persistenceProbe {
-        java { srcDir 'src/contracts/java'; include 'org/scex/slashbladelegacy/contracts/LegacyPersistenceProbe.java' }
-        resources.srcDir 'src/persistenceResources'
-    }
-}
 tasks.register('clientProbeJar', Jar) {
     archiveClassifier = 'client-probe'
     from(sourceSets.contracts.output) { exclude 'org/scex/slashbladelegacy/contracts/LegacyPersistenceProbe*.class' }
@@ -38,29 +31,35 @@ tasks.register('serverContractsJar', Jar) {
         exclude 'org/scex/slashbladelegacy/contracts/LegacyViewProbe*.class'
         exclude 'org/scex/slashbladelegacy/contracts/LegacyTimingTrace*.class'
         exclude 'org/scex/slashbladelegacy/contracts/LegacyLifecycleProbe*.class'
+        exclude 'org/scex/slashbladelegacy/contracts/LegacyDamageProbe*.class'
         exclude 'org/scex/slashbladelegacy/contracts/LegacyPersistenceProbe*.class'
     }
 }
 tasks.register('persistenceProbeJar', Jar) {
     archiveClassifier = 'persistence-probe-r1'
-    from sourceSets.persistenceProbe.output
+    from(sourceSets.persistence.output)
+    from 'src/persistenceResources'
 }
+sourceSets { contracts; persistence }
 configurations {
     contractsImplementation.extendsFrom implementation
     contractsRuntimeOnly.extendsFrom runtimeOnly
+    persistenceImplementation.extendsFrom implementation
+    persistenceRuntimeOnly.extendsFrom runtimeOnly
     slashbladeVerification {
         canBeConsumed = false
         canBeResolved = true
         transitive = false
     }
 }
-sourceSets.persistenceProbe.compileClasspath += sourceSets.contracts.compileClasspath
-sourceSets.persistenceProbe.runtimeClasspath += sourceSets.contracts.runtimeClasspath
+sourceSets.persistence.compileClasspath += sourceSets.main.output
+sourceSets.persistence.runtimeClasspath += sourceSets.main.output
 sourceSets.contracts.compileClasspath += sourceSets.main.output
 sourceSets.contracts.runtimeClasspath += sourceSets.main.output
 neoForge {
     version = '21.1.248'
     addModdingDependenciesTo(sourceSets.contracts)
+    addModdingDependenciesTo(sourceSets.persistence)
     runs {
         client { client(); gameDirectory = file('runs/client') }
         server { server(); gameDirectory = file('runs/server') }
@@ -69,7 +68,7 @@ neoForge {
             gameDirectory = file(providers.gradleProperty('contractGameDir').getOrElse('runs/contracts'))
             jvmArgument '-Xmx4G'
             jvmArgument '-XX:ActiveProcessorCount=2'
-            jvmArgument '-Dscex.dev9Audit=true'
+            jvmArgument '-Dscex.legacy17Contracts=true'
         }
     }
     mods {
@@ -140,6 +139,6 @@ tasks.withType(AbstractArchiveTask).configureEach {
     reproducibleFileOrder = true
 }
 def bundledNotices = files('LICENSE', 'NOTICE', 'THIRD-PARTY-NOTICES.md',
-        'LICENSE-LEGACY-README.txt', 'AI-GENERATED.md')
+        'LICENSE-LEGACY-README.txt', 'LICENSE-LEGACY17-README.txt', 'AI-GENERATED.md')
 tasks.named('jar') { from(bundledNotices) { into 'META-INF/licenses' } }
 tasks.named('sourcesJar') { from(bundledNotices) { into 'META-INF/licenses' } }

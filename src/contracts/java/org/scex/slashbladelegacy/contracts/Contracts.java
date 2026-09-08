@@ -31,6 +31,9 @@ public final class Contracts {
     public Contracts() { NeoForge.EVENT_BUS.addListener(this::started); }
     private void started(ServerStartedEvent event) {
         if(Boolean.getBoolean("scex.legacy.clientProbe"))return;
+        if(Boolean.getBoolean("scex.legacy17Load")){
+            ContractWorldReady.prepare(event.getServer(),preparation -> Legacy17LoadProbe.start(event.getServer(),preparation));return;
+        }
         ContractWorldReady.prepare(event.getServer(),preparation -> run(event.getServer(),preparation));
     }
     private void run(net.minecraft.server.MinecraftServer server,java.util.Map<String,Object> preparation) {
@@ -38,6 +41,7 @@ public final class Contracts {
         report.put("fixture_preparation",preparation);
         try {
             require(Boolean.TRUE.equals(preparation.get("ready")),"Fixture entity lifecycle not ready: "+preparation);
+            if(Boolean.getBoolean("scex.legacy17Contracts")){Legacy17Contracts.run(server,report);report.put("success",true);return;}
             var level = server.overworld();
             level.getChunk(0,0);
             for(int x=-2;x<=2;x++) for(int y=160;y<=163;y++)

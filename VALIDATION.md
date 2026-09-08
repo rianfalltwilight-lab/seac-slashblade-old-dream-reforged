@@ -1,10 +1,9 @@
-# Validation record: 0.1.0-dev.13
+# Validation: 0.2.0-dev.1
 
-Frozen input source hashes verified. Public inventory: 64 source files / 57 Java files. Java is copied unchanged; public metadata and license packaging differ from internal development artifacts.
+Frozen primary-project source archive SHA-256: 4de6237ca0afd43f3ef89f87661065b0cc1f5cc5fc1f2856bb023b69ebcff6b8. Every archived file checked against the frozen inventory. Public source: 137 files / 118 Java. Public metadata and license packaging differ from the internal JAR; Java implementation is unchanged.
 
-Internal GUI lifecycle A/B test: dev.11 reproduces the unloaded-config tooltip/reach exception; dev.13 creates, exits and reopens the same world within one process, observes config unloading, queries real item tooltips during TagsUpdatedEvent, and verifies loaded live switches after reentry. Normal Java exit and dimension saves confirmed. Public renamed artifact does not claim a separate GUI rerun.
+Internal evidence applies to the frozen main + NR + SI combination: 26 blades, 13 SA / 15 SE entrypoints, new-world/config integration using 251 JARs, targeted GUI rendering/Gaia and reconnect/dimension component preservation. New-world integration is not production configuration/world acceptance. Load evidence is controlled FakePlayer traffic, not actual multiplayer networking. Details and limits are in the release notes.
 
-Public clean build, isolated minimal server contracts and reproducible asset hashes are gated before publishing and in GitHub CI. Independent persistence probe remains isolated from the standard contract source set.
+Public CI tests the main mod with the locked Resharpened dependency and r87 contracts; optional external-addon tests skip when absent. The old 1.12/VMD assertions do not establish r87 acceptance. No GUI rerun of the public renamed JAR is claimed.
 
-No dev.13 full-pack, multiplayer/server switching, new first-person image validation or performance benchmark. TanukiDecor was not installed in the minimal client; corresponding API/event failure was reproduced there. Historical combo/landing client-probe issues are not claimed resolved. No production deployment.
-Public Git-export clean build, all three probe compilation tasks and applicable minimal server contracts passed; all dimensions saved and exit 0. Runtime SHA-256: fce83f6a05ae9a6645bcca709f7edee7dd9c49eb3179214eca6540e5ba579eaa. Sources SHA-256: fde110e29eeb12e0bd3fd26679e428176f234cf55e0a51a639138fee1563c98c.
+Production old-world upgrade/rollback, original-config full client pack, real dedicated multiplayer/high latency, full Gaia ritual, all shaders/addons and long-term performance remain unverified. No production deployment.

@@ -25,7 +25,7 @@ import java.util.Map;
 final class SbContracts {
     static void run(ServerPlayer player,ItemStack blade,Map<String,Object> report) {
         var level=player.serverLevel();
-        level.addNewPlayer(player);
+        if(level.getEntity(player.getUUID())!=player)level.addNewPlayer(player);
         blade.remove(DataComponents.ATTRIBUTE_MODIFIERS);
         blade.setDamageValue(0);
         blade.set(DataComponents.CUSTOM_NAME,Component.literal("SB contract"));
@@ -108,6 +108,7 @@ final class SbContracts {
         report.put("sb_test_scope","Actual server event and projectile lifecycle with FakePlayer; no client or multiplayer acceptance");
         testCharge(player,blade,report);
         testSourceIdentity(player,blade,report);
+        stand.discard();
     }
     private static void testSourceIdentity(ServerPlayer player,ItemStack blade,Map<String,Object> report) {
         var source=blade.get(DataComponents.CUSTOM_DATA).copyTag().getUUID(SummonedBladeMode.SOURCE);

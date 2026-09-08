@@ -45,56 +45,39 @@ public final class LegacyCombat {
         }
     }
     private LegacyCombat() {}
+    public static void resetAirAttack(Player player) {player.getPersistentData().remove(AIR_USED);}
     public static ResourceLocation id(LegacyMove move) {return move==NONE?ComboStateRegistry.NONE.getId():MOVES.get(move).getId();}
     public static LegacyMove move(ResourceLocation id) {
         for(var entry:MOVES.entrySet())if(entry.getValue().getId().equals(id))return entry.getKey();
         return NONE;
     }
     private static ComboState build(LegacyMove move) {
-        // Paired blade-holder and body clips cover the whole original motion in six ticks.
-        int start=animationStart(move),end=animationEnd(move);
-        float speed=(end-start)/9f;
-        int reset=move==NOUTOU?10:move.resetTicks; // Legacy sheathing schedules LastActionTime five ticks ahead.
-        int animationMillis=(int)(TimeValueHelper.getMSecFromFrames(end-start)/speed);
-        var builder=ComboState.Builder.newInstance().startAndEnd(start,end).speed(speed)
-                .timeout(reset*50-animationMillis).priority(50)
-                .next(user->id(NONE)).nextOfTimeout(user->id(move==HELM_BRAKER && user.onGround()?HELM_LANDING:move.scabbard || move==NOUTOU || move==IAI || move==S_IAI?NONE:NOUTOU))
+        // Registry entries carry input/timeouts only. The 1.7 renderer uses vanilla swing progress.
+        int reset=move==NOUTOU?10:move.resetTicks;
+        var builder=ComboState.Builder.newInstance().startAndEnd(0,0).speed(1)
+                .timeout(reset*50).priority(100)
+                .next(user->id(NONE)).nextOfTimeout(user->id(move==HELM_BRAKER && user.onGround()?HELM_LANDING:move.scabbard || move==NOUTOU || move==SLASH_DIM || move==IAI || move==S_IAI?NONE:NOUTOU))
                 .clickAction(user->attack(user,move)).addHitEffect((target,user)->impact(user,target,move))
                 .addHoldAction(user->hold(user,move,user.getTicksUsingItem()));
         if(move.aerial())builder.aerial();
         return builder.build();
     }
-    /** Existing Resharpened player_motion.vmd clips, shared by body and blade-holder fallback. */
-    public static int animationStart(LegacyMove move) {
-        return switch(move) {
-            case NOUTOU -> 21;
-            case SAYA2,FORCE2,FORCE4 -> 100;
-            case FORCE3 -> 200;
-            case BATTOU,SLASH_EDGE,S_SLASH_EDGE,FORCE5 -> 400;
-            case RETURN_EDGE,S_RETURN_EDGE -> 100;
-            case HIRA_TUKI,STINGER -> 700;
-            case S_SLASH_BLADE,FORCE6 -> 900;
-            case A_SLASH_EDGE -> 1100;
-            case A_KIRIOROSI -> 1200;
-            case A_KIRIAGE -> 1300;
-            case A_KIRIOROSI_FINISH -> 1500;
-            case KIRIAGE -> 1600;
-            case KIRIOROSI,HELM_BRAKER -> 1800;
-            case HELM_LANDING -> 1816;
-            case IAI,S_IAI -> 1900;
-            case RAPID_SLASH,RAPID_SLASH_END,CALIBUR -> 2000;
-            case RISING_STAR -> 2100;
-            default -> 1;
-        };
-    }
-    /** Ends from the actual Resharpened player motion registrations, not start + nine frames. */
-    public static int animationEnd(LegacyMove move) {
-        return switch(animationStart(move)) {
-            case 1,21 -> 41; case 100 -> 151; case 200 -> 306; case 400 -> 488;
-            case 700 -> 787; case 900 -> 1061; case 1100 -> 1132; case 1200 -> 1241;
-            case 1300 -> 1338; case 1500 -> 1547; case 1600 -> 1693; case 1800 -> 1817;
-            case 1816 -> 1859; case 1900 -> 1963; case 2000 -> 2073; case 2100 -> 2147;
-            default -> throw new IllegalArgumentException("Unmapped animation: "+move);
+    /** Ordinary input uses registered legacy states. Charged foreign arts retain their identity;
+     * the old dimension-slash gesture is their default visual adapter until explicitly mapped. */
+    public static LegacyMove visualMove(ResourceLocation combo) {
+        var art=LegacyArts.visual(combo);if(art!=null)return art;
+        var legacy=move(combo);
+        if(legacy!=NONE || combo.equals(ComboStateRegistry.NONE.getId()) || combo.equals(ComboStateRegistry.STANDBY.getId()))return legacy;
+        return switch(combo.toString()) {
+            case "slashblade:piercing","slashblade:piercing_just","si_slashblade:spear" -> HIRA_TUKI;
+            case "si_slashblade:legacy_kiriorosi","si_slashblade:kinetic_impact" -> KIRIOROSI;
+            case "prinegorerouse:zenith12th_end","prinegorerouse:magnetic_storm_sword_end",
+                    "prinegorerouse:divine_cross_sa_end","prinegorerouse:burning_fire_sa_end",
+                    "prinegorerouse:cosmic_line_end","prinegorerouse:over_the_horizon_end",
+                    "si_slashblade:legacy_dimension_recovery","slashblade:drive_horizontal_end",
+                    "slashblade:piercing_end","slashblade:piercing_end2","slashblade:judgement_cut_sheath",
+                    "slashblade:judgement_cut_sheath_air","slashblade:judgement_cut_slash_just_sheath" -> NOUTOU;
+            default -> SLASH_DIM;
         };
     }
     public static float slashRoll(LegacyMove move) {return -move.direction;}
@@ -116,7 +99,7 @@ public final class LegacyCombat {
             };
         }
         if(!right)return current==KIRIAGE?KIRIOROSI:KIRIAGE;
-        if(forward && sneak && current!=RAPID_SLASH && current!=RAPID_SLASH_END)return dual?STINGER:RAPID_SLASH;
+        if(forward && sneak && current!=RAPID_SLASH && current!=RAPID_SLASH_END)return RAPID_SLASH;
         if(back && sneak && current!=KIRIAGE)return KIRIAGE;
         return switch(current) {
             case RAPID_SLASH -> RAPID_SLASH_END;
@@ -126,19 +109,17 @@ public final class LegacyCombat {
             case S_IAI -> S_SLASH_EDGE;
             case S_SLASH_EDGE -> S_RETURN_EDGE;
             case S_RETURN_EDGE -> S_SLASH_BLADE;
-            default -> dual?switch(current) {case FORCE1->FORCE2;case FORCE2->FORCE3;case FORCE3->FORCE4;case FORCE4->FORCE5;case FORCE5->FORCE6;default->FORCE1;}:SAYA1;
+            default -> SAYA1; // r87 predates offhand blades; saved Force IDs remain registered only.
         };
     }
     public static void nextCombo(SlashBladeEvent.NextComboEvent event) {
         if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !(event.getUser() instanceof Player player))return;
         var state=event.getSlashBladeState();
-        // Custom addon combo roots retain their own move sets, until explicitly mapped and verified.
-        if(!state.getComboRoot().equals(ComboStateRegistry.STANDBY.getId()))return;
         var input=player.getData(CapabilityInputState.INPUT_STATE);
         var commands=input.getCommands(player);
         boolean right=commands.contains(InputCommand.R_CLICK);
         if(!right && !commands.contains(InputCommand.L_CLICK))return;
-        if(SwordType.from(event.getBlade()).contains(SwordType.NOSCABBARD))return;
+        if(SwordType.from(event.getBlade()).contains(SwordType.NOSCABBARD)){event.setNextCombo(id(NONE));return;}
         if(player.onGround())player.getPersistentData().remove(AIR_USED);
         long now=player.level().getGameTime();
         Long backTime=input.getLastPressTimes().get(InputCommand.BACK);
@@ -149,18 +130,25 @@ public final class LegacyCombat {
                 BladeStateAccess.of(player.getOffhandItem()).isPresent(),rank(player),Math.max(0,now-state.getLastActionTime()));
         event.setNextCombo(id(selected));
     }
+    /** Exact ItemSlashBlade.getBBofCombo from 1.7.10 r87, independent of modern reach attributes. */
     public static AABB box(LivingEntity user,LegacyMove move) {
+        var blade=user.getMainHandItem();var state=BladeStateAccess.of(blade).orElseThrow();
         Vec3 look=user.getLookAngle().multiply(1,0,1).normalize();
-        double x=1.2,y=1.25,z=2,dy=.5;
-        if(move.scabbard){y=.25;dy=0;}
+        boolean broken=state.isBroken();
+        double x=broken?1:1.2,y=broken?0:1.25,z=broken?1:2,dy=broken?0:.5;
+        if(move.scabbard){x=1.2;y=.25;z=2;dy=0;}
         else switch(move) {
-            case BATTOU,CALIBUR,RAPID_SLASH,RISING_STAR,SLASH_EDGE,RETURN_EDGE,S_SLASH_EDGE,S_RETURN_EDGE,STINGER -> {x=2;y=.75;z=2.5;dy=0;}
-            case S_SLASH_BLADE -> {x=3;y=1;z=2.5;dy=0;}
-            case IAI,S_IAI -> {x=2;y=1;z=2.5;dy=0;}
-            case HELM_BRAKER -> {x=2;y=2.5;z=2.5;dy=0;}
+            case BATTOU,CALIBUR,RAPID_SLASH,RISING_STAR,SLASH_EDGE,RETURN_EDGE,S_SLASH_EDGE,S_RETURN_EDGE -> {
+                if(!broken) {
+                    boolean perfect=blade.getDamageValue()==0 && !state.isSealed() && SwordType.from(blade).contains(SwordType.BEWITCHED);
+                    x=perfect?5:2;y=.75;z=perfect?0:2.5;dy=0;
+                }
+            }
+            case S_SLASH_BLADE -> {if(!broken){x=3;y=1;z=2.5;dy=0;}}
+            case IAI,S_IAI -> {if(!broken){x=2;y=1;z=2.5;dy=0;}}
+            case HELM_BRAKER -> {if(!broken){x=2;y=2.5;z=2.5;dy=0;}}
             default -> {}
         }
-        // Broken blades retain the restored normal footprint; existing server reach/LOS guard also applies.
         return user.getBoundingBox().inflate(x,y,x).move(look.x*z,dy,look.z*z);
     }
     private static void attack(LivingEntity user,LegacyMove move) {
@@ -171,11 +159,17 @@ public final class LegacyCombat {
         var attackingBlade=user.getMainHandItem();
         movement(user,move);
         if(user.level().isClientSide || !(user instanceof Player player))return;
-        // Restore the public slash/SE pipeline removed by the immediate-melee implementation.
-        // Only this returned arc is visual-only; effects spawned by SE listeners retain their damage.
-        var arc=AttackManager.doSlash(player,slashRoll(move),true,false,move.scabbard?.44:1);
-        if(arc==null)return; // Respect cancellation by SE/protection listeners.
-        arc.getPersistentData().putBoolean("slashblade_legacy_compat.visual_arc",true);
+        LegacyDamage.update(player);
+        // Left-click selects a pose; the clicked entity receives the single vanilla-style hit.
+        // It must not also run the right-click area strike.
+        if(player.getData(CapabilityInputState.INPUT_STATE).getCommands().contains(InputCommand.L_CLICK))return;
+        boolean perfectBattou=move==BATTOU && attackingBlade.getDamageValue()==0
+                && SwordType.from(attackingBlade).contains(SwordType.BEWITCHED);
+        // The original mesh trail follows the blade. Keep the public addon hook without spawning
+        // a second, independently timed Resharpened arc over the old animation.
+        var slash=new SlashBladeEvent.DoSlashEvent(attackingBlade,BladeStateAccess.of(attackingBlade).orElseThrow(),
+                player,slashRoll(move),false,move.scabbard?.44:1,KnockBacks.cancel);
+        if(net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(slash).isCanceled())return;
         if(!holdingBlade(player,attackingBlade))return;
         LegacyAdditionalAttack.attack(player,move);
         if(!holdingBlade(player,attackingBlade))return;
@@ -183,6 +177,7 @@ public final class LegacyCombat {
         if(!holdingBlade(player,attackingBlade))return;
         if(move==RAPID_SLASH || move==CALIBUR || move==HELM_BRAKER || move==STINGER)MOTIONS.put(player,new Motion(player,move));
         damageArea(player,move,box(player,move),null);
+        if(perfectBattou && holdingBlade(player,attackingBlade))LegacyAdditionalAttack.wear(attackingBlade,10,player);
         if(!move.scabbard)player.level().playSound(null,player.blockPosition(),net.minecraft.sounds.SoundEvents.PLAYER_ATTACK_SWEEP,
                 net.minecraft.sounds.SoundSource.PLAYERS,1,1);
     }
@@ -192,55 +187,18 @@ public final class LegacyCombat {
     private static void damageArea(Player player,LegacyMove move,AABB bounds,Set<UUID> alreadyHit) {
         var blade=player.getMainHandItem();
         if(!holdingBlade(player,blade))return;
-        var state=BladeStateAccess.of(blade).orElseThrow();
-        for(var entity:TargetSelector.getTargettableEntitiesWithinAABB(player.level(),player,bounds)) {
+        for(var entity:LegacyTargets.within(player,bounds)) {
             if(!holdingBlade(player,blade))break;
-            if(entity instanceof net.minecraft.world.entity.projectile.Projectile || entity instanceof net.minecraft.world.entity.item.PrimedTnt)continue;
             if(alreadyHit!=null && !alreadyHit.add(entity.getUUID()))continue;
-            if(!player.hasLineOfSight(entity))continue;
-            if(move.scabbard && entity instanceof LivingEntity living) {
-                boolean previousClick=state.onClick();
-                boolean canceled;
-                try {
-                    state.setOnClick(true);
-                    canceled=net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(
-                            new net.neoforged.neoforge.event.entity.player.AttackEntityEvent(player,entity)).isCanceled();
-                } finally {state.setOnClick(previousClick);}
-                if(canceled)continue;
-                if(!holdingBlade(player,blade))break;
-                float amount=rank(player)<3 || state.isBroken()?2:5;
-                if(rank(player)>=3 && !state.isBroken() && SwordType.from(blade).contains(SwordType.FIERCEREDGE))amount+=state.getAttackAmplifier()*.5f;
-                amount=Math.max(amount,net.minecraft.world.item.enchantment.EnchantmentHelper.modifyDamage(
-                        (net.minecraft.server.level.ServerLevel)player.level(),blade,living,player.damageSources().mobAttack(player),amount));
-                amount=Math.min(amount,living.getHealth()-1);
-                if(amount<=0)continue;
-                living.invulnerableTime=0;
-                if(living.hurt(player.damageSources().mobAttack(player),amount)
-                        && !net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(new SlashBladeEvent.HitEvent(blade,state,living,player)).isCanceled())
-                    impact(player,living,move); // Legacy scabbard strikes do not consume blade durability.
-            } else {
-                // 1.12.2 calls Player.attackTargetEntityWithCurrentItem, including its cooldown.
-                if(entity instanceof LivingEntity living)living.invulnerableTime=0;
-                try {
-                    state.setOnClick(true);
-                    if((move==FORCE1 || move==FORCE2 || move==FORCE6 || move==STINGER) && BladeStateAccess.of(player.getOffhandItem()).isPresent()) {
-                        var offhand=player.getOffhandItem();var offstate=BladeStateAccess.of(offhand).orElseThrow();
-                        try {
-                            offstate.setOnClick(true);player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,offhand);
-                            player.attack(entity);
-                            LegacyAdditionalAttack.wear(offhand,1,player);
-                        }finally{player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,blade);offstate.setOnClick(false);}
-                        if(entity instanceof LivingEntity living && !net.neoforged.neoforge.common.NeoForge.EVENT_BUS
-                                .post(new SlashBladeEvent.HitEvent(blade,state,living,player)).isCanceled())impact(player,living,move);
-                    }else player.attack(entity);
-                } finally {state.setOnClick(false);}
-            }
+            LegacyDamage.hit(player,entity,move,bounds,true);
         }
     }
     public static void tick(net.neoforged.neoforge.event.tick.PlayerTickEvent.Post event) {
         Player player=event.getEntity();
+        LegacyDamage.update(player);
         if(player.onGround())player.getPersistentData().remove(AIR_USED);
-        if(!player.level().isClientSide){tickMotion(player,player.level().getGameTime());LegacyProjectileGuard.tick(player);LegacySheathingRepair.tick(player);}
+        LegacyRespiration.tick(player);
+        if(!player.level().isClientSide){tickMotion(player,player.level().getGameTime());LegacyJustGuard.tick(player);LegacyProjectileGuard.tick(player);LegacySheathingRepair.tick(player);}
     }
     public static void projectileHit(net.minecraft.world.item.ItemStack blade,LivingEntity target,Player player) {
         var state=BladeStateAccess.of(blade).orElseThrow();var current=move(state.resolvCurrentComboState(player));
@@ -341,18 +299,24 @@ public final class LegacyCombat {
             case BATTOU -> {if(!user.onGround() && !used){if(feather(user)==0)user.setDeltaMovement(velocity.x,.2,velocity.z);user.getPersistentData().putBoolean(AIR_USED,true);}}
             default -> {}
         }
-        if(move.aerial() || !user.onGround())user.fallDistance=0;
+        // r87 only clears falling for these air techniques. Kiriage/Kiriorosi can still crit.
+        switch(move) {
+            case HELM_BRAKER,CALIBUR,A_SLASH_EDGE,A_KIRIOROSI,A_KIRIAGE,A_KIRIOROSI_FINISH -> user.fallDistance=0;
+            case IAI,BATTOU -> {if(!user.onGround())user.fallDistance=0;}
+            default -> {}
+        }
         if(!velocity.equals(user.getDeltaMovement())) {
             user.hurtMarked=true;
             if(user instanceof net.minecraft.server.level.ServerPlayer player)player.connection.send(new net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket(user));
         }
     }
-    private static void impact(LivingEntity user,LivingEntity target,LegacyMove move) {
+    public static void impact(LivingEntity user,LivingEntity target,LegacyMove move) {
         Vec3 forward=Vec3.directionFromRotation(0,user.getYRot());
         switch(move) {
             case KIRIAGE,RISING_STAR -> {target.setOnGround(false);target.setDeltaMovement(0,.6,0);stun(target);}
-            case KIRIOROSI -> {target.setDeltaMovement(target.getDeltaMovement().add(forward.x*.25,-.2,forward.z*.25));target.fallDistance+=4;target.invulnerableTime=0;}
+            case KIRIOROSI -> {var v=target.getDeltaMovement();target.setDeltaMovement(v.x+forward.x*.25,Math.min(0,v.y)-.2,v.z+forward.z*.25);target.fallDistance+=4;target.invulnerableTime=0;}
             case BATTOU,RETURN_EDGE,HIRA_TUKI -> {
+                if(move==HIRA_TUKI)stun(target);
                 int knockback=user.getMainHandItem().getEnchantmentLevel(user.registryAccess().holderOrThrow(net.minecraft.world.item.enchantment.Enchantments.KNOCKBACK));
                 double force=knockback>0?knockback*.5:.75;
                 target.setDeltaMovement(forward.x*force,.2,forward.z*force);
@@ -360,7 +324,12 @@ public final class LegacyCombat {
             }
             case A_KIRIAGE -> {target.setDeltaMovement(0,.7,0);stun(target);}
             case A_KIRIOROSI_FINISH,HELM_BRAKER -> {target.setDeltaMovement(0,move==HELM_BRAKER?-1:-.8,0);target.fallDistance+=move==HELM_BRAKER?5:4;target.invulnerableTime=0;StunManager.removeStun(target);}
-            default -> {target.setDeltaMovement(0,move.scabbard?0:(target.onGround()?0:(feather(user)>0?.3:.2)),0);stun(target);}
+            default -> {target.setDeltaMovement(0,move.scabbard?0:(feather(user)>0?.3:.2),0);stun(target);}
+        }
+        if(move.scabbard && target instanceof Mob mob) {
+            int fortune=user.getMainHandItem().getEnchantmentLevel(user.registryAccess().holderOrThrow(net.minecraft.world.item.enchantment.Enchantments.FORTUNE));
+            if(fortune>0)mob.setDropChance(EquipmentSlot.MAINHAND,.99f);
+            if(fortune>1)for(var slot:new EquipmentSlot[]{EquipmentSlot.FEET,EquipmentSlot.LEGS,EquipmentSlot.CHEST,EquipmentSlot.HEAD})mob.setDropChance(slot,.99f);
         }
         target.hurtMarked=true;
     }

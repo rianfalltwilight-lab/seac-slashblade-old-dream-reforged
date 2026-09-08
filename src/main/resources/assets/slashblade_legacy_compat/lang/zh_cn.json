@@ -1,1 +1,14 @@
-{"slashblade_legacy_compat.sb.blade":"SB:幻影飞刀","slashblade_legacy_compat.sb.sword":"SB:幻影剑"}
+{
+  "slashblade_legacy_compat.blade_soul":"%s 的刀魂",
+  "slashblade_legacy_compat.sb.blade":"SB:幻影飞刀",
+  "slashblade_legacy_compat.sb.sword":"SB:幻影剑",
+  "slash_art.slashblade_legacy_compat.slash_dimension":"次元斩",
+  "slash_art.slashblade_legacy_compat.drive":"幻影刃",
+  "slash_art.slashblade_legacy_compat.quick_drive":"幻影刃（速斩）",
+  "slash_art.slashblade_legacy_compat.wave_edge":"波刀龙胆",
+  "slash_art.slashblade_legacy_compat.spear":"平突",
+  "slash_art.slashblade_legacy_compat.circle_slash":"円刃",
+  "slash_art.slashblade_legacy_compat.wither_swords":"急襲幻影剣-衰破",
+  "slash_art.slashblade_legacy_compat.sakura_end":"終焉桜",
+  "slash_art.slashblade_legacy_compat.maximum_bet":"MaximumBet"
+}

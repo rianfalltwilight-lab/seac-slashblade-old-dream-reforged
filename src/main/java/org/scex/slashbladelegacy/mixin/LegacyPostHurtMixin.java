@@ -16,6 +16,6 @@ public abstract class LegacyPostHurtMixin {
     @Inject(method="postHurtEnemy",at=@At("HEAD"),cancellable=true)
     private void legacyCompat$oneWear(ItemStack blade,LivingEntity target,LivingEntity attacker,CallbackInfo ci) {
         if(blade.getItem() instanceof ItemSlashBlade && LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT)
-                && BladeStateAccess.of(blade).map(state->state.onClick() && state.getComboRoot().equals(ComboStateRegistry.STANDBY.getId())).orElse(false))ci.cancel();
+                && BladeStateAccess.of(blade).map(state->state.onClick()).orElse(false))ci.cancel();
     }
 }

@@ -1,0 +1,15 @@
+{
+  "replace": false,
+  "values": [
+    {"id":"si_slashblade:trblade_first","required":false},
+    {"id":"si_slashblade:mrblade_final","required":false},
+    {"id":"si_slashblade:kineticenergyblade_final","required":false},
+    {"id":"si_slashblade:hyperblade_second","required":false},
+    {"id":"si_slashblade:fox_white","required":false},
+    {"id":"si_slashblade:fox_black","required":false},
+    {"id":"si_slashblade:fox_faerie","required":false},
+    {"id":"si_slashblade:fox_elf","required":false},
+    {"id":"si_slashblade:bloodrev_extra","required":false},
+    {"id":"si_slashblade:craftrev_extra","required":false}
+  ]
+}

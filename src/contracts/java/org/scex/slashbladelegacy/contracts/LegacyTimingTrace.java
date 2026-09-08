@@ -37,6 +37,16 @@ public final class LegacyTimingTrace {
     public static Map<String,Object> serverSnapshot(){return serverSnapshot;}
     public static Map<String,Object> serverLanding(){return serverLanding;}
     public static void resetLanding(){serverLanding=Map.of();}
+    @SubscribeEvent public static void render(mods.flammpfeil.slashblade.event.client.RenderOverrideEvent event){
+        if(!enabled() || !Boolean.getBoolean("scex.legacy.full17Probe") || rows.size()>20000)return;
+        var p=Minecraft.getInstance().player;
+        if(p==null || event.getStack()!=p.getMainHandItem() || !Set.of("blade","sheath").contains(event.getTarget()))return;
+        var row=new LinkedHashMap<String,Object>();row.put("kind","blade_render");row.put("client",true);row.put("mark",mark);
+        row.put("world_tick",p.level().getGameTime());row.put("swing",p.attackAnim);row.put("part",event.getTarget());
+        row.put("combo",BladeStateAccess.of(p.getMainHandItem()).orElseThrow().getComboSeq().toString());
+        row.put("pose",event.getPoseStack().last().pose().get(new float[16]));
+        row.put("modelView",com.mojang.blaze3d.systems.RenderSystem.getModelViewMatrix().get(new float[16]));rows.add(row);
+    }
     @SubscribeEvent public static void frame(net.neoforged.neoforge.client.event.RenderFrameEvent.Post event){
         if(!enabled() || !Boolean.getBoolean("scex.legacy.frameHitch") || hitched || mark.getOrDefault("phase",0)!=8 || mark.getOrDefault("ticks",0)<2)return;
         hitched=true;record("controlled_frame_hitch_begin",Minecraft.getInstance().player,"400 ms render-thread hitch; server remains running");

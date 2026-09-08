@@ -1,5 +1,5 @@
 package org.scex.slashbladelegacy.client;
-/** Furia/flammpfeil legacy 1.12.2 ba1ef860: exact 26-vertex/48-triangle mesh. See THIRD-PARTY-NOTICES. */
+/** Furia/flammpfeil 1.7.10 r87 83429584: exact 26-vertex/48-triangle mesh. See THIRD-PARTY-NOTICES. */
 final class LegacyBladeMesh {
 static final double[][] VERTICES = {
             {-3.2303,0.0000,-16.7280},
