@@ -1,5 +1,9 @@
 # SEAC拔刀剑附属 旧梦重铸
 
+**[⬇ 直接下载旧梦重铸 0.2.0-dev.1 运行 JAR](https://github.com/rianfalltwilight-lab/seac-slashblade-old-dream-reforged/releases/download/v0.2.0-dev.1/SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-0.2.0-dev.1.jar)**
+
+适用于 Minecraft 1.21.1；下载后放入 mods。无需下载源码或选择 Git 标签。
+
 非官方 SlashBlade: Resharpened 双端附属，当前 **0.2.0-dev.1**。以 **mc1.7.10-r87** 为主动行为基准，保留现代保护接口及明确兼容适配。开发预发布，未部署生产。
 
 MC 1.21.1 / NeoForge 21.1.248 / Java 21。实际验证重锋 2.0.5-1.21.1；版本号软绑定不代表所有内部 API 兼容。客户端和服务器须使用同一版本；modId 为 slashblade_legacy_compat。
