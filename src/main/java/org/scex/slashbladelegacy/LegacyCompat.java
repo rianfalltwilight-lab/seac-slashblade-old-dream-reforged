@@ -74,6 +74,9 @@ public final class LegacyCompat {
         NeoForge.EVENT_BUS.addListener(LegacyAirControl::tick);
         NeoForge.EVENT_BUS.addListener(LegacyFireResistance::tick);
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) -> {LegacyJustGuard.clear(event.getEntity());LegacyRangeAttack.clear(event.getEntity());});
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) -> LegacyRank.synchronize(event.getEntity()));
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerChangedDimensionEvent event) -> LegacyRank.synchronize(event.getEntity()));
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerRespawnEvent event) -> LegacyRank.synchronize(event.getEntity()));
         NeoForge.EVENT_BUS.addListener(LegacyFreeze::tick);
         NeoForge.EVENT_BUS.addListener(LegacyArtEntity::teleport);
         NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, LegacySheathingRepair::timeout);

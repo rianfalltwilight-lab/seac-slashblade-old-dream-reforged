@@ -147,6 +147,8 @@ final class Legacy17Contracts {
             Range17Contracts.run(player,report);
             Drive17Contracts.run(player,report);
             BaseArts17Contracts.run(player,report);
+            Followup17Contracts.run(server,report);
+            Advancement17Contracts.run(server,report);
             ProjectileTail17Contracts.run(player,report);
             var beforeSb=player.getMainHandItem();var beforeSbPos=player.position();
             try {

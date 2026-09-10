@@ -18,7 +18,7 @@ public abstract class LegacyAnvilMixin {
         }
     }
     @Inject(method="refineLimitCheck",at=@At("HEAD"),cancellable=true)
-    private void legacyCompat$singleRefine(RefineProgressEvent event,CallbackInfo ci) {
+    private void legacyCompat$legacyRefineLimit(RefineProgressEvent event,CallbackInfo ci) {
         if(LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && event.getBlade().getItem() instanceof ItemSlashBlade)ci.cancel();
     }
 }

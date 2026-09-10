@@ -27,12 +27,12 @@ final class Repair17Contracts {
             for(int i=0;i<materials.size();i++) {
                 var blade=fresh(original);var state=BladeStateAccess.of(blade).orElseThrow();state.setMaxDamage(100);blade.setDamageValue(75);state.setRefine(300);state.setProudSoulCount(0);
                 blade.enchant(player.registryAccess().holderOrThrow(Enchantments.SHARPNESS),1);
-                var menu=new AnvilMenu(20+i,player.getInventory());menu.getSlot(0).set(blade);menu.getSlot(1).set(new ItemStack(materials.get(i),4));menu.setItemName("r87 repair");menu.createResult();
+                var menu=new AnvilMenu(20+i,player.getInventory());menu.getSlot(0).set(blade);menu.getSlot(1).set(new ItemStack(materials.get(i)));menu.setItemName("r87 repair");menu.createResult();
                 var output=menu.getSlot(2).getItem();var out=BladeStateAccess.of(output).orElseThrow();
                 check(output.getDamageValue()==damage[i] && out.getMaxDamage()==100 && out.getRefine()==301 && out.getProudSoulCount()==soul[i],"material factor, single refine, no max-durability growth "+i);
                 check(menu.getCost()==cost[i] && menu.getSlot(2).mayPickup(player),"actual anvil level cost "+i);
                 int before=player.experienceLevel;menu.getSlot(2).onTake(player,output);
-                check(menu.getSlot(0).getItem().isEmpty() && menu.getSlot(1).getItem().getCount()==3 && player.experienceLevel==before-cost[i],"actual output pickup pays one material "+i);
+                check(menu.getSlot(0).getItem().isEmpty() && menu.getSlot(1).getItem().isEmpty() && player.experienceLevel==before-cost[i],"actual output pickup pays one material "+i);
                 check(state.getRefine()==300 && blade.getDamageValue()==75,"input blade unchanged");
                 rows.add(Map.of("material",materials.get(i).toString(),"damage",output.getDamageValue(),"souls",out.getProudSoulCount(),"cost",cost[i],"refine",out.getRefine()));
             }

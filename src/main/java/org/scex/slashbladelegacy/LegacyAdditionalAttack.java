@@ -11,6 +11,11 @@ import net.minecraft.world.item.enchantment.Enchantments;
 public final class LegacyAdditionalAttack {
     private static final String CHARGED="scex_legacy_charged";
     private LegacyAdditionalAttack(){}
+    public static void clearCharged(net.minecraft.world.item.ItemStack blade) {
+        var data=blade.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag();
+        if(!data.contains(CHARGED))return;
+        data.remove(CHARGED);blade.set(DataComponents.CUSTOM_DATA,CustomData.of(data));
+    }
     public static void markCharged(net.minecraft.world.entity.LivingEntity user,net.minecraft.resources.ResourceLocation result) {
         if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || result==null || result.equals(ComboStateRegistry.NONE.getId()))return;
         var blade=user.getMainHandItem();var state=BladeStateAccess.of(blade).orElse(null);

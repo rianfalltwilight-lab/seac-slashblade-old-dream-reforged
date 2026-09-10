@@ -37,7 +37,9 @@ public final class LegacyDamage {
     }
 
     public static void update(Player player) {
-        if (!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT)) return;
+        // A replacement LocalPlayer starts with an empty rank attachment after changing worlds.
+        // Inventory synchronization owns this component; do not overwrite it with that temporary zero.
+        if (player.level().isClientSide || !LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT)) return;
         var blade = player.getMainHandItem();
         BladeStateAccess.of(blade).ifPresent(state -> {
             float value = amplifier(player, blade);

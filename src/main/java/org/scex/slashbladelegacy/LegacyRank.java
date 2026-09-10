@@ -9,6 +9,16 @@ import net.minecraft.world.entity.player.Player;
 /** Legacy hit awards normalized to Resharpened's rank unit, retaining native HUD and sync packets. */
 public final class LegacyRank {
     private LegacyRank(){}
+    /** Re-send the current server rank when the client receives a new player/level instance.
+     * This neither awards points nor changes death/login persistence or r87's low-rank damage. */
+    public static void synchronize(Player player) {
+        if (!(player instanceof net.minecraft.server.level.ServerPlayer server)
+                || !LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT)) return;
+        var rank=player.getData(mods.flammpfeil.slashblade.capability.concentrationrank.CapabilityConcentrationRank.RANK_POINT);
+        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(server,
+                new mods.flammpfeil.slashblade.network.RankSyncMessage(rank.getRankPoint(player.level().getGameTime())));
+        LegacyDamage.update(player);
+    }
     public static boolean award(IConcentrationRank rank,DamageSource source) {
         if(LegacyProjectileDamage.award(rank,source))return true;
         if(LegacyDamage.ownsRankSource(source))return true;

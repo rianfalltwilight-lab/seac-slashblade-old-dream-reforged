@@ -12,6 +12,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(value=ISlashBladeState.class,remap=false)
 public interface LegacyChargeMixin {
+    @Inject(method="updateComboSeq(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/resources/ResourceLocation;)V",
+            at=@At("RETURN"),require=1)
+    private void legacyClearAfterRest(LivingEntity user,ResourceLocation combo,org.spongepowered.asm.mixin.injection.callback.CallbackInfo result) {
+        // ItemSlashBlade.setComboSequence(None) clears IsCharged in r87. Without
+        // this, an expired SA can leave an extra Drive armed through later combos.
+        if(LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT)
+                && ((ISlashBladeState)(Object)this).getComboSeq().equals(ComboStateRegistry.NONE.getId())
+                && mods.flammpfeil.slashblade.capability.slashblade.BladeStateAccess.of(user.getMainHandItem())
+                    .map(state->state.getComboSeq().equals(ComboStateRegistry.NONE.getId())).orElse(false))
+            org.scex.slashbladelegacy.LegacyAdditionalAttack.clearCharged(user.getMainHandItem());
+    }
     @Inject(method="doChargeAction(Lnet/minecraft/world/entity/LivingEntity;I)Lnet/minecraft/resources/ResourceLocation;",
             at=@At("RETURN"),require=1)
     private void legacyAfterCharge(LivingEntity user,int elapsed,CallbackInfoReturnable<ResourceLocation> result) {

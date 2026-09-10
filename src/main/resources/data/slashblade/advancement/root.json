@@ -1,0 +1,24 @@
+{
+  "display": {
+    "title": { "translate": "itemGroup.slashblade" },
+    "description": { "translate": "adv.slashblade_legacy_compat.first_attack" },
+    "icon": { "id": "minecraft:wooden_sword" },
+    "background": "minecraft:textures/block/chiseled_quartz_block.png",
+    "frame": "task"
+  },
+  "criteria": {
+    "attackTheEntity": {
+      "trigger": "minecraft:player_hurt_entity",
+      "conditions": {
+        "player": { "equipment": { "mainhand": {
+          "items": "minecraft:wooden_sword",
+          "components": { "minecraft:damage": 0 }
+        } } },
+        "damage": { "type": { "tags": [
+          { "id": "slashblade_legacy_compat:legacy_player_attack", "expected": true }
+        ] } }
+      }
+    }
+  },
+  "rewards": { "recipes": ["slashblade:slashblade_wood"] }
+}

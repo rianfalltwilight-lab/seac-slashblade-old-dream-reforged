@@ -1,3 +1,5 @@
+当前 0.2.0-dev.7 验证边界见 [更新说明](docs/releases/0.2.0-dev.7.md)。以下为历史记录。
+
 当前 0.2.0-dev.5 的版本范围与验证见 [更新说明](docs/releases/0.2.0-dev.5.md)，以下为历史记录。
 
 当前 0.2.0-dev.3 的更新与验证见 [Release 说明](docs/releases/0.2.0-dev.3.md)。以下保留历史验收范围。

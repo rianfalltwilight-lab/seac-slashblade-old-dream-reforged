@@ -41,9 +41,11 @@ public final class Contracts {
         report.put("fixture_preparation",preparation);
         try {
             require(Boolean.TRUE.equals(preparation.get("ready")),"Fixture entity lifecycle not ready: "+preparation);
+            if(Files.exists(Path.of("batch-phantom-contracts.flag"))){BatchPhantomContracts.run(server,report);report.put("success",true);return;}
             if(Files.exists(Path.of("feather-contracts.flag"))){FeatherContracts.run(server,report);report.put("success",true);return;}
             if(Files.exists(Path.of("super-contracts.flag"))){Super17Contracts.run(server,report);report.put("success",true);return;}
             if(Files.exists(Path.of("avoid-contracts.flag"))){Avoid17Contracts.run(server,report);report.put("success",true);return;}
+            if(Files.exists(Path.of("followup-contracts.flag"))){Followup17Contracts.run(server,report);Advancement17Contracts.run(server,report);report.put("success",true);return;}
             if(Files.exists(Path.of("saved-left.snbt"))){SavedLeftContracts.run(server,report);report.put("success",true);return;}
             if(Boolean.getBoolean("scex.legacy17Contracts")){Legacy17Contracts.run(server,report);report.put("success",true);return;}
             var level = server.overworld();

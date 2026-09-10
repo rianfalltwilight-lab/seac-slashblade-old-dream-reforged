@@ -123,7 +123,12 @@ public final class LegacyCombat {
         if(player.onGround())player.getPersistentData().remove(AIR_USED);
         long now=player.level().getGameTime();
         Long backTime=input.getLastPressTimes().get(InputCommand.BACK);
-        var current=move(state.resolvCurrentComboState(player));
+        var currentId=state.resolvCurrentComboState(player);
+        // r87 SA writes the ordinary combo pose (Drive/WaveEdge -> Kiriage).
+        // Our registered SA IDs must retain that pose for input as well as rendering.
+        // Do not use visualMove's generic foreign-art fallback to invent addon continuations.
+        var artPose=LegacyArts.visual(currentId);
+        var current=artPose!=null?artPose:move(currentId);
         var selected=next(current,right,player.onGround(),commands.contains(InputCommand.SNEAK),
                 commands.contains(InputCommand.FORWARD),commands.contains(InputCommand.BACK),
                 backTime!=null && now-backTime>=0 && now-backTime<=7,player.getPersistentData().getBoolean(AIR_USED),
