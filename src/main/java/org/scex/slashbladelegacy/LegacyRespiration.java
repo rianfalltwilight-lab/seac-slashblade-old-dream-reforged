@@ -10,7 +10,7 @@ import net.minecraft.world.phys.Vec3;
 public final class LegacyRespiration {
     private LegacyRespiration() {}
     public static void tick(Player player) {
-        if (!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !player.isUsingItem()) return;
+        if (!org.scex.slashbladelegacy.LegacyMode.legacy(player) || !player.isUsingItem()) return;
         var blade = player.getMainHandItem();
         if (player.getUseItem() != blade || BladeStateAccess.of(blade).isEmpty()) return;
         int level = blade.getEnchantmentLevel(player.registryAccess().holderOrThrow(Enchantments.RESPIRATION));

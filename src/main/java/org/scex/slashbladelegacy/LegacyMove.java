@@ -1,6 +1,6 @@
 package org.scex.slashbladelegacy;
 
-/** Names, angles and reset windows from 1.7.10 r87 ItemSlashBlade.ComboSequence; later IDs kept for saves. */
+/** r87 moves, extended with the 1.12.2 ForceEdge/Stinger names, angles and reset windows. */
 public enum LegacyMove {
     NONE(true,0,0,0), SAYA1(true,200,5,20), SAYA2(true,-200,5,20),
     BATTOU(false,240,0,12), NOUTOU(false,-210,10,5), KIRIAGE(false,260,70,20),

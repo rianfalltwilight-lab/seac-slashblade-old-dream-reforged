@@ -15,7 +15,7 @@ import net.minecraft.world.phys.*;
 public final class LegacyProjectileGuard {
     private LegacyProjectileGuard(){}
     public static boolean handles(LivingEntity user) {
-        return user instanceof Player && LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && BladeStateAccess.of(user.getMainHandItem())
+        return user instanceof Player && org.scex.slashbladelegacy.LegacyMode.legacy(user) && BladeStateAccess.of(user.getMainHandItem())
                 .map(s->
                         (s.getComboSeq().getNamespace().equals(LegacyCompat.MOD_ID) || s.getComboSeq().equals(ComboStateRegistry.NONE.getId()))).orElse(false);
     }
@@ -29,7 +29,7 @@ public final class LegacyProjectileGuard {
     }
     public static boolean barrierAvailable(Player player,int elapsed) {
         var blade=player.getMainHandItem();
-        return LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && player.isAlive() && player.onGround()
+        return org.scex.slashbladelegacy.LegacyMode.legacy(player) && player.isAlive() && player.onGround()
                 && player.isShiftKeyDown() && player.isUsingItem() && player.getUseItem()==blade && elapsed>=15
                 && BladeStateAccess.of(blade).map(state->!state.isBroken()).orElse(false)
                 && blade.getEnchantmentLevel(player.registryAccess().holderOrThrow(Enchantments.THORNS))>0;

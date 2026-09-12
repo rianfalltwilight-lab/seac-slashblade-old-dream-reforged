@@ -13,12 +13,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class LegacyAnvilMixin {
     @Inject(method="onAnvilUpdateEvent",at=@At("HEAD"),cancellable=true)
     private void legacyCompat$anvil(AnvilUpdateEvent event,CallbackInfo ci) {
-        if(LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && event.getLeft().getItem() instanceof ItemSlashBlade) {
+        if(org.scex.slashbladelegacy.LegacyMode.legacy(event.getPlayer()) && event.getLeft().getItem() instanceof ItemSlashBlade) {
             LegacyAnvil.update(event);ci.cancel();
         }
     }
     @Inject(method="refineLimitCheck",at=@At("HEAD"),cancellable=true)
     private void legacyCompat$legacyRefineLimit(RefineProgressEvent event,CallbackInfo ci) {
-        if(LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && event.getBlade().getItem() instanceof ItemSlashBlade)ci.cancel();
+        if(org.scex.slashbladelegacy.LegacyMode.legacy(event.getBlade()) && event.getBlade().getItem() instanceof ItemSlashBlade)ci.cancel();
     }
 }

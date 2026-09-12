@@ -187,12 +187,21 @@ public final class LegacyPhantomSword extends EntityAbstractSummonedSword {
                 burst();return true;
             }
             var parent=entity instanceof PartEntity<?> part?part.getParent():entity;
-            if(parent instanceof LivingEntity target)hit(owner,target);
+            if(parent instanceof LivingEntity target)onHitEntity(new EntityHitResult(target,hit.getLocation()));
             return attachedId!=null || isRemoved();
         }
         if(art==Art.SINGLE) { blocked=true;setPos(closest.getLocation());setDeltaMovement(Vec3.ZERO); }
         else {setPos(closest.getLocation());burst();}
         return true;
+    }
+    /** External force-hit calls must use the same r87 source and attachment rules as collision. */
+    @Override protected void onHitEntity(EntityHitResult result) {
+        if(level().isClientSide || ended || isRemoved() || attachedId!=null || LegacySwordImpact.notifying(this))return;
+        var entity=result.getEntity() instanceof PartEntity<?> part?part.getParent():result.getEntity();
+        if(!(getOwner() instanceof Player owner) || !owner.isAlive() || LegacyRangeAttack.sourceBlade(owner,sourceId).isEmpty()
+                || !(entity instanceof LivingEntity target) || !eligible(owner,target)
+                || art==Art.STORM && hitTargets.contains(target.getUUID()))return;
+        hit(owner,target);
     }
     private void hit(Player owner,LivingEntity target) {
         if(wither) {
@@ -201,7 +210,7 @@ public final class LegacyPhantomSword extends EntityAbstractSummonedSword {
             if(witherBurst)level().explode(this,getX(),getY(),getZ(),1,false,Level.ExplosionInteraction.NONE);
             else target.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.WITHER,100,1));
             if(!target.isAlive())owner.heal(1);
-            burst();return;
+            burst();LegacySwordImpact.post(this,target);return;
         }
         if(art==Art.SPIRAL && age%3!=0)return;
         double damage=getDamage();
@@ -213,11 +222,14 @@ public final class LegacyPhantomSword extends EntityAbstractSummonedSword {
         }
         if(art==Art.SPIRAL || art==Art.STORM) {
             if(art==Art.STORM)hitTargets.add(target.getUUID());
-            if(--remainingHits<=0)burst();return;
+            if(--remainingHits<=0)burst();LegacySwordImpact.post(this,target);return;
         }
         attachedId=target.getUUID();attachedAge=art==Art.HEAVY_RAIN?200-(lifetime-age):0;
         attachedOffset=position().subtract(target.position());attachedYaw=getYRot()-target.getYRot();attachedPitch=getXRot()-target.getXRot();
         setDeltaMovement(Vec3.ZERO);
+        // Notify only after damage acceptance and attachment bookkeeping. Addon listeners can
+        // add their own effects, but re-entering doForceHitEntity cannot duplicate this impact.
+        LegacySwordImpact.post(this,target);
     }
     private boolean strike(Player owner,LivingEntity target,double amount,boolean breaking,double lift) {
         return LegacyProjectileDamage.strike(this,owner,LegacyRangeAttack.sourceBlade(owner,sourceId),target,amount,breaking,lift,art==Art.HEAVY_RAIN);

@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /** r87's 100-point bands transported using the existing 300-unit rank component and packets. */
 @Mixin(value=IConcentrationRank.class,remap=false)
 public interface LegacyRankScaleMixin {
-    private boolean legacyCompat$enabled(){return LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && LegacyCompat.isEnabled(LegacyCompat.LEGACY_RANK);}
+    private boolean legacyCompat$enabled(){return org.scex.slashbladelegacy.LegacyMode.legacyRank((IConcentrationRank)(Object)this);}
     @Inject(method="getRank(J)Lmods/flammpfeil/slashblade/capability/concentrationrank/IConcentrationRank$ConcentrationRanks;",at=@At("HEAD"),cancellable=true)
     private void legacyCompat$threshold(long time,CallbackInfoReturnable<IConcentrationRank.ConcentrationRanks> cir) {
         if(!legacyCompat$enabled())return;

@@ -11,7 +11,7 @@ public final class LegacyAirControl {
         var player=event.getEntity();
         LegacySuperArts.tick(player);
         LegacyRespiration.tick(player);
-        if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !player.isAlive())return;
+        if(!org.scex.slashbladelegacy.LegacyMode.legacy(player) || !player.isAlive())return;
         var blade=player.getMainHandItem();var state=BladeStateAccess.of(blade).orElse(null);
         if(state==null)return;
         int level=blade.getEnchantmentLevel(player.registryAccess().holderOrThrow(Enchantments.FEATHER_FALLING));

@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class LegacyAvoidMixin {
     @Inject(method="onInputChange",at=@At("HEAD"),cancellable=true,require=1)
     private void legacyAvoid(InputCommandEvent event,CallbackInfo ci) {
-        if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT))return;
+        if(!org.scex.slashbladelegacy.LegacyMode.legacy(event.getEntity()))return;
         var current=event.getCurrent();
         // r87 routes Lock-on + forward + V to AirTrick before AvoidAction.
         // Keep the existing AirTrick path, including other addons' hooks.

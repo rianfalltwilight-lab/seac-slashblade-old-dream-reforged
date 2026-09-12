@@ -50,11 +50,11 @@ public final class SummonedBladeMode {
     private static final WeakHashMap<ServerPlayer,Press> PRESSES=new WeakHashMap<>();
     private static final WeakHashMap<ServerPlayer,Long> LAST_SHOT=new WeakHashMap<>();
     public static boolean enabled(ItemStack stack) {
-        return LegacyCompat.isEnabled(LegacyCompat.SUMMONED_BLADE) && BladeStateAccess.of(stack).isPresent()
+        return org.scex.slashbladelegacy.LegacyMode.enabled(stack,LegacyCompat.SUMMONED_BLADE) && BladeStateAccess.of(stack).isPresent()
                 && stack.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag().getBoolean(MODE);
     }
     public static void interact(PlayerInteractEvent.EntityInteract event) {
-        if (!LegacyCompat.isEnabled(LegacyCompat.SUMMONED_BLADE) || event.getHand()!=InteractionHand.MAIN_HAND
+        if (!org.scex.slashbladelegacy.LegacyMode.enabled(event.getEntity(),LegacyCompat.SUMMONED_BLADE) || event.getHand()!=InteractionHand.MAIN_HAND
                 || !(event.getTarget() instanceof BladeStandEntity stand)) return;
         var soul=event.getItemStack();
         var data=soul.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag();
@@ -80,7 +80,7 @@ public final class SummonedBladeMode {
         if (enabled(event.getItemStack())) event.getToolTip().add(Component.translatable("slashblade_legacy_compat.sb.blade"));
     }
     public static void attackStand(mods.flammpfeil.slashblade.event.SlashBladeEvent.BladeStandAttackEvent event) {
-        if(!LegacyCompat.isEnabled(LegacyCompat.SUMMONED_BLADE) || !(event.getDamageSource().getEntity() instanceof ServerPlayer player)
+        if(!org.scex.slashbladelegacy.LegacyMode.enabled(event.getDamageSource().getEntity(),LegacyCompat.SUMMONED_BLADE) || !(event.getDamageSource().getEntity() instanceof ServerPlayer player)
                 || event.getDamageSource().getDirectEntity()!=player)return;
         // Resharpened's soul-on-stand operations are LEFT-click attacks, not EntityInteract.
         var stand=event.getBladeStand();
@@ -89,6 +89,7 @@ public final class SummonedBladeMode {
         if(interaction.isCanceled())event.setCanceled(true);
     }
     public static void input(InputCommandEvent event) {
+        if(org.scex.slashbladelegacy.LegacyMode.modern(event.getEntity()))return;
         if(LegacyRangeAttack.enabled()) { LegacyRangeAttack.input(event);return; }
         var player=event.getEntity();
         boolean was=event.getOld().contains(InputCommand.M_DOWN), now=event.getCurrent().contains(InputCommand.M_DOWN);
@@ -123,4 +124,5 @@ public final class SummonedBladeMode {
                     net.minecraft.sounds.SoundSource.PLAYERS,0.35f,1f);
         }
     }
+    public static void clear(net.minecraft.world.entity.player.Player player){PRESSES.remove(player);LAST_SHOT.remove(player);}
 }

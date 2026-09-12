@@ -22,7 +22,7 @@ public final class LegacyTaunt {
     private static final String LEVEL="slashblade_legacy_compat.taunt_level";
     private LegacyTaunt(){}
     public static boolean handles(ItemStack blade) {
-        return LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && LegacyCompat.isEnabled(LegacyCompat.LEGACY_TAUNT) && blade.getItem() instanceof ItemSlashBlade
+        return org.scex.slashbladelegacy.LegacyMode.legacy(blade) && LegacyCompat.isEnabled(LegacyCompat.LEGACY_TAUNT) && blade.getItem() instanceof ItemSlashBlade
                 && BladeStateAccess.of(blade).isPresent()
                 && !SwordType.from(blade).contains(SwordType.NOSCABBARD);
     }

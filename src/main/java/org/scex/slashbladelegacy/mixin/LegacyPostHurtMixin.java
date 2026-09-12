@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class LegacyPostHurtMixin {
     @Inject(method="postHurtEnemy",at=@At("HEAD"),cancellable=true)
     private void legacyCompat$oneWear(ItemStack blade,LivingEntity target,LivingEntity attacker,CallbackInfo ci) {
-        if(blade.getItem() instanceof ItemSlashBlade && LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT)
+        if(blade.getItem() instanceof ItemSlashBlade && org.scex.slashbladelegacy.LegacyMode.legacy(attacker)
                 && BladeStateAccess.of(blade).map(state->state.onClick()).orElse(false))ci.cancel();
     }
 }

@@ -12,6 +12,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class LegacySoulEnchantmentsMixin {
     @Inject(method={"eventProudSoulEnchantment","eventCopySA"},at=@At("HEAD"),cancellable=true)
     private static void legacyCompat$oldSoulOperation(SlashBladeEvent.BladeStandAttackEvent event,CallbackInfo ci) {
-        if(LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT))ci.cancel();
+        if(org.scex.slashbladelegacy.LegacyMode.legacy(event.getDamageSource().getEntity()))ci.cancel();
     }
 }

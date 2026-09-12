@@ -12,7 +12,7 @@ import net.neoforged.neoforge.event.entity.living.LivingEntityUseItemEvent;
 public final class LegacyFireResistance {
     private LegacyFireResistance() {}
     public static void tick(LivingEntityUseItemEvent.Tick event) {
-        if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !(event.getEntity() instanceof Player player)
+        if(!org.scex.slashbladelegacy.LegacyMode.legacy(event.getEntity()) || !(event.getEntity() instanceof Player player)
                 || !player.isUsingItem() || event.getItem()!=player.getMainHandItem()
                 || BladeStateAccess.of(event.getItem()).isEmpty())return;
         int level=event.getItem().getEnchantmentLevel(player.registryAccess().holderOrThrow(Enchantments.FIRE_PROTECTION));

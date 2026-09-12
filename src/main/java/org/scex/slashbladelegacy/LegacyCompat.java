@@ -62,6 +62,8 @@ public final class LegacyCompat {
         // SERVER configs synchronize to clients. Restart/re-equip after changing this development config.
         container.registerConfig(ModConfig.Type.SERVER, SPEC);
         modBus.addListener(LegacyAvoidPayload::register);
+        modBus.addListener(LegacyModePayload::register);
+        LegacyMode.register();
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST, LegacyCompat::damage);
         NeoForge.EVENT_BUS.addListener(EventPriority.LOW, LegacyCompat::reach);
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST, LegacyCompat::validateMelee);
@@ -98,20 +100,20 @@ public final class LegacyCompat {
         var target = event.getTarget();
         // Only a synchronous, exact target/bounds match may use the old area rule.
         // External modern melee calls still receive their original range/LOS validation.
-        if (isEnabled(LEGACY_COMBAT) && LegacyDamage.scoped(player, target, stack)) return;
+        if (org.scex.slashbladelegacy.LegacyMode.legacy(player) && LegacyDamage.scoped(player, target, stack)) return;
         double reach = mods.flammpfeil.slashblade.util.TargetSelector.getResolvedReach(player);
         if (!Double.isFinite(reach) || reach <= 0 || !player.hasLineOfSight(target)
                 || mods.flammpfeil.slashblade.util.TargetSelector.distanceSqrBetweenEntity(target,player) >= reach*reach)
             event.setCanceled(true);
     }
     private static void damage(SlashBladeEvent.UpdateAttackEvent event) {
-        if (isEnabled(LEGACY_COMBAT)) {
+        if (org.scex.slashbladelegacy.LegacyMode.legacy(event.getBlade())) {
             var state = event.getSlashBladeState();
             event.setNewDamage(state.isBroken() || state.isSealed() ? 2
                     : state.getBaseAttackModifier() + state.getAttackAmplifier());
             return;
         }
-        if (!isEnabled(BROKEN_DAMAGE) || !(event.getBlade().getItem() instanceof ItemSlashBlade)
+        if (!org.scex.slashbladelegacy.LegacyMode.enabled(event.getBlade(),BROKEN_DAMAGE) || !(event.getBlade().getItem() instanceof ItemSlashBlade)
                 || !event.getSlashBladeState().isBroken()) return;
         // Exact current formula gate; leave overrides from other mods untouched.
         // Old updateAttackAmplifier: (2 - base) + base = +2, i.e. player total 3.
@@ -122,7 +124,7 @@ public final class LegacyCompat {
     }
     private static void reach(ItemAttributeModifierEvent event) {
         var stack = event.getItemStack();
-        if (!isEnabled(BROKEN_REACH) || !(stack.getItem() instanceof ItemSlashBlade)
+        if (!org.scex.slashbladelegacy.LegacyMode.enabled(stack,BROKEN_REACH) || !(stack.getItem() instanceof ItemSlashBlade)
                 || !stack.getOrDefault(DataComponents.ATTRIBUTE_MODIFIERS,
                     net.minecraft.world.item.component.ItemAttributeModifiers.EMPTY).modifiers().isEmpty()
                 || !BladeStateAccess.of(stack).map(s -> s.isBroken()).orElse(false)) return;

@@ -109,7 +109,8 @@ final class Legacy17Contracts {
             check(target.getHealth()==497 && LegacyCombat.move(state.getComboSeq())==KIRIAGE,"actual Player.attack left single hit no cooldown");
             check(attackEvents[0]==attacksBefore+1 && hitEvents[0]==hitsBefore+1,"left does not duplicate protection or hit callbacks");
             player.setItemInHand(InteractionHand.OFF_HAND,blade.copy());state.setComboSeq(ComboStateRegistry.NONE.getId());
-            InputClock.use(player,blade);check(LegacyCombat.move(state.getComboSeq())==SAYA1,"offhand does not select post-1.7 Force graph");
+            InputClock.use(player,blade);check(LegacyCombat.move(state.getComboSeq())==FORCE1,"equipment selects the requested later Force extension");
+            player.setItemInHand(InteractionHand.OFF_HAND,ItemStack.EMPTY);
             for(var move:LegacyMove.values())if(move!=NONE) {
                 var combo=ComboStateRegistry.REGISTRY.get(LegacyCombat.id(move));
                 check(combo.getStartFrame()==0 && combo.getEndFrame()==0,"VMD-free registered state "+move);

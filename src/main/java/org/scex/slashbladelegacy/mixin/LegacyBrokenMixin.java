@@ -13,6 +13,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class LegacyBrokenMixin {
     @Inject(method="getOnBroken",at=@At("HEAD"),cancellable=true)
     private static void legacyCompat$broken(ItemStack blade,CallbackInfoReturnable<Consumer<LivingEntity>> cir) {
-        if(LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT))cir.setReturnValue(user->LegacyBroken.reward(blade,user));
+        if(org.scex.slashbladelegacy.LegacyMode.legacy(blade))cir.setReturnValue(user->LegacyBroken.reward(blade,user));
     }
 }

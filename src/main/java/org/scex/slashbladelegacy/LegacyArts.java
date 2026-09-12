@@ -72,8 +72,23 @@ public final class LegacyArts {
         };
     }
     public static ResourceLocation select(SlashArts arts,SlashArts.ArtsType type,LivingEntity user) {
-        if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !(user instanceof Player))return null;
-        var art=resolve(SlashArts.getRegistryKey(arts));
+        if(!(user instanceof Player))return null;
+        var key=SlashArts.getRegistryKey(arts);var art=resolve(key);
+        if(!LegacyMode.legacy(user)) {
+            // Saved legacy SA aliases remain stable. Use native equivalents without rewriting blade data.
+            if(art==null || key==null || !key.getNamespace().equals(LegacyCompat.MOD_ID))return null;
+            var nativeArt=switch(art) {
+                case DRIVE->mods.flammpfeil.slashblade.registry.SlashArtsRegistry.DRIVE_VERTICAL.get();
+                case QUICK->mods.flammpfeil.slashblade.registry.SlashArtsRegistry.DRIVE_HORIZONTAL.get();
+                case WAVE->mods.flammpfeil.slashblade.registry.SlashArtsRegistry.WAVE_EDGE.get();
+                case SPEAR->mods.flammpfeil.slashblade.registry.SlashArtsRegistry.PIERCING.get();
+                case CIRCLE->mods.flammpfeil.slashblade.registry.SlashArtsRegistry.CIRCLE_SLASH.get();
+                case SAKURA->mods.flammpfeil.slashblade.registry.SlashArtsRegistry.SAKURA_END.get();
+                // No native Wither/Maximum implementation. The framework default is Judgement Cut.
+                default->mods.flammpfeil.slashblade.registry.SlashArtsRegistry.JUDGEMENT_CUT.get();
+            };
+            return nativeArt.doArts(type,user);
+        }
         if(type==SlashArts.ArtsType.Super) {
             if(art!=null)return combo(Art.DIMENSION,type,false);
             // Old ISuperSpecialAttack implementations may supply their own Super. Otherwise
@@ -86,7 +101,7 @@ public final class LegacyArts {
         return type==SlashArts.ArtsType.Fail?ComboStateRegistry.NONE.getId():combo(art,type,false);
     }
     public static boolean release(ItemStack blade,Level level,LivingEntity user,int timeLeft) {
-        if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !(user instanceof Player player))return false;
+        if(!org.scex.slashbladelegacy.LegacyMode.legacy(user) || !(user instanceof Player player))return false;
         var state=BladeStateAccess.of(blade).orElse(null);if(state==null || resolve(state.getSlashArtsKey())==null)return false;
         if(level.isClientSide || !LegacyDamage.holding(player,blade) || state.isBroken() || state.isSealed() || !SwordType.from(blade).contains(SwordType.ENCHANTED))return true;
         var result=state.doChargeAction(player,blade.getUseDuration(user)-timeLeft);

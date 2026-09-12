@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.At;
 public abstract class LegacyRankMixin {
     @WrapOperation(method="onLivingHurtEvent",at=@At(value="INVOKE",target="Lmods/flammpfeil/slashblade/capability/concentrationrank/IConcentrationRank;addRankPoint(Lnet/minecraft/world/entity/LivingEntity;J)V"))
     private void legacyCompat$hurt(IConcentrationRank rank,net.minecraft.world.entity.LivingEntity victim,long amount,Operation<Void> original,net.neoforged.neoforge.event.entity.living.LivingDamageEvent.Pre event) {
-        if(org.scex.slashbladelegacy.LegacyCompat.isEnabled(org.scex.slashbladelegacy.LegacyCompat.LEGACY_COMBAT)
+        if(org.scex.slashbladelegacy.LegacyMode.legacy(victim)
                 && org.scex.slashbladelegacy.LegacyCompat.isEnabled(org.scex.slashbladelegacy.LegacyCompat.LEGACY_RANK))LegacyRank.hurt(victim,rank,event.getSource());
         else original.call(rank,victim,amount);
     }

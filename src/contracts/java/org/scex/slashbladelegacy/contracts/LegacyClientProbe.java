@@ -48,7 +48,7 @@ public final class LegacyClientProbe {
     private static long inputNs,airStartNs,groundNs;
     private static boolean sampled,airObserved;
     @SubscribeEvent public static void tick(ClientTickEvent.Post event) {
-        if(!Boolean.getBoolean("scex.legacy.clientProbe") || Boolean.getBoolean("scex.legacy.viewProbe") || Boolean.getBoolean("scex.legacy.lifecycleProbe") || done)return;
+        if(!Boolean.getBoolean("scex.legacy.clientProbe") || Boolean.getBoolean("scex.legacy.stabilityProbe") || Boolean.getBoolean("scex.legacy.viewProbe") || Boolean.getBoolean("scex.legacy.lifecycleProbe") || done)return;
         var mc=Minecraft.getInstance();
         try {
             if(started==0){

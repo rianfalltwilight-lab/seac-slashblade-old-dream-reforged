@@ -17,7 +17,7 @@ public abstract class LegacyManagedMeleeMixin {
     @Inject(method="doMeleeAttack(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/Entity;ZZF)V",
             at=@At("HEAD"),cancellable=true)
     private static void legacyCompat$managedMelee(LivingEntity user,Entity target,boolean force,boolean reset,float ratio,CallbackInfo ci) {
-        if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !(user instanceof Player player)
+        if(!org.scex.slashbladelegacy.LegacyMode.legacy(user) || !(user instanceof Player player)
                 || BladeStateAccess.of(player.getMainHandItem()).isEmpty())return;
         ci.cancel();
         if(player.level().isClientSide || !Float.isFinite(ratio) || ratio<=0 || !LegacyTargets.attackable(player,target))return;

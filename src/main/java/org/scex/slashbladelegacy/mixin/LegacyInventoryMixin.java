@@ -13,6 +13,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class LegacyInventoryMixin {
     @Inject(method="inventoryTick",at=@At("HEAD"),cancellable=true)
     private void legacyCompat$inventory(ItemStack blade,Level level,Entity entity,int slot,boolean selected,CallbackInfo ci) {
-        if(LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT)){LegacyInventory.tick(blade,level,entity,slot,selected);ci.cancel();}
+        if(org.scex.slashbladelegacy.LegacyMode.legacy(entity)){LegacyInventory.tick(blade,level,entity,slot,selected);ci.cancel();}
     }
 }

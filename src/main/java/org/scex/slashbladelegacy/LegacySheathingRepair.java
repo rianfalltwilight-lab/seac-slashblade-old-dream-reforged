@@ -27,8 +27,9 @@ public final class LegacySheathingRepair {
         Sheath(Player player,LegacyMove move){blade=player.getMainHandItem();position=player.position();dimension=player.level().dimension();stationary=move==LegacyMove.NOUTOU;}
     }
     private LegacySheathingRepair() {}
+    public static void clear(Player player){SHEATHS.remove(player);}
     public static boolean handles(ItemStack blade) {
-        return LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && LegacyCompat.isEnabled(LegacyCompat.SHEATHING_REPAIR)
+        return org.scex.slashbladelegacy.LegacyMode.legacy(blade) && LegacyCompat.isEnabled(LegacyCompat.SHEATHING_REPAIR)
                 && blade.getItem() instanceof ItemSlashBlade && BladeStateAccess.of(blade)
                 .isPresent();
     }

@@ -17,7 +17,7 @@ public final class LegacyAdditionalAttack {
         data.remove(CHARGED);blade.set(DataComponents.CUSTOM_DATA,CustomData.of(data));
     }
     public static void markCharged(net.minecraft.world.entity.LivingEntity user,net.minecraft.resources.ResourceLocation result) {
-        if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || result==null || result.equals(ComboStateRegistry.NONE.getId()))return;
+        if(!org.scex.slashbladelegacy.LegacyMode.legacy(user) || result==null || result.equals(ComboStateRegistry.NONE.getId()))return;
         var blade=user.getMainHandItem();var state=BladeStateAccess.of(blade).orElse(null);
         if(state==null)return;
         var data=blade.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag();data.putBoolean(CHARGED,true);
@@ -39,6 +39,11 @@ public final class LegacyAdditionalAttack {
         }
         if(move==LegacyMove.S_SLASH_BLADE)
             spawn(player,move,.05f,rank>5,true); // r87 setter(rank<=5) is the single-hit flag.
+        else if(move==LegacyMove.FORCE6 || move==LegacyMove.FORCE5 && rank>=5) {
+            player.level().playSound(null,player.blockPosition(),net.minecraft.sounds.SoundEvents.PLAYER_ATTACK_SWEEP,
+                    net.minecraft.sounds.SoundSource.PLAYERS,.8f,.01f);
+            spawn(player,move,.1f,rank>5,true); // 1.12.2 Force finisher speed; no extra soul/durability cost.
+        }
     }
     public static void wear(net.minecraft.world.item.ItemStack blade,int amount,Player player) {
         if(player.level() instanceof net.minecraft.server.level.ServerLevel level) {

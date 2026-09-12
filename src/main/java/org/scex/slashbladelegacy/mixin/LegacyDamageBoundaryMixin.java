@@ -19,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.*;
 /** r87 breaks after exceeding maximum damage, preserving the framework's public break callback. */
 @Mixin(ItemSlashBlade.class)
 public abstract class LegacyDamageBoundaryMixin {
-    private static boolean applies(ItemStack blade){return LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && !blade.is(LegacyDurability.FRAMEWORK_BOUNDARY);}
+    private static boolean applies(ItemStack blade){return org.scex.slashbladelegacy.LegacyMode.legacy(blade) && !blade.is(LegacyDurability.FRAMEWORK_BOUNDARY);}
     @Inject(method="setDamage",at=@At("HEAD"),cancellable=true)
     private void legacyCompat$setDamage(ItemStack blade,int damage,CallbackInfo ci) {
         if(!applies(blade))return;

@@ -18,6 +18,7 @@ public final class LegacySuperArts {
     private record Charge(ItemStack blade,long started) {}
     private static final WeakHashMap<ServerPlayer,Charge> CHARGES=new WeakHashMap<>();
     private LegacySuperArts() {}
+    public static void clear(Player player){CHARGES.remove(player);}
     public static boolean eligible(ItemStack blade) {
         var state=BladeStateAccess.of(blade).orElse(null);
         return state!=null && !state.isBroken() && !state.isSealed() && blade.getDamageValue()==0
@@ -35,7 +36,7 @@ public final class LegacySuperArts {
     public static void tick(Player player) {
         if(player instanceof ServerPlayer server) {
             var charge=CHARGES.get(server);
-            if(charge!=null && (!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !player.isAlive() || player.getMainHandItem()!=charge.blade))CHARGES.remove(server);
+            if(charge!=null && (!org.scex.slashbladelegacy.LegacyMode.legacy(player) || !player.isAlive() || player.getMainHandItem()!=charge.blade))CHARGES.remove(server);
         }
     }
     public static void release(ServerPlayer player) {

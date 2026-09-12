@@ -12,10 +12,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class LegacySuperArtsMixin {
     @Inject(method="onInputChange",at=@At("HEAD"),cancellable=true,require=1)
     private void legacyInput(InputCommandEvent event,CallbackInfo ci) {
-        if(LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT)){LegacySuperArts.input(event);ci.cancel();}
+        if(org.scex.slashbladelegacy.LegacyMode.legacy(event.getEntity())){LegacySuperArts.input(event);ci.cancel();}
     }
     @Inject(method="releaseSSA",at=@At("HEAD"),cancellable=true,require=1)
     private static void legacyRelease(ServerPlayer player,CallbackInfo ci) {
-        if(LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT)){LegacySuperArts.release(player);ci.cancel();}
+        if(org.scex.slashbladelegacy.LegacyMode.legacy(player)){LegacySuperArts.release(player);ci.cancel();}
     }
 }

@@ -35,7 +35,7 @@ public final class LegacyBladeSouls {
         result.set(DataComponents.CUSTOM_NAME,Component.translatable("slashblade_legacy_compat.blade_soul",Component.translatable(definition.value().getTranslationKey())));return result;
     }
     public static void stand(SlashBladeEvent.BladeStandAttackEvent event) {
-        if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || event.isCanceled()
+        if(!org.scex.slashbladelegacy.LegacyMode.legacy(event.getDamageSource().getEntity()) || event.isCanceled()
                 || !(event.getDamageSource().getEntity() instanceof ServerPlayer player) || event.getDamageSource().getDirectEntity()!=player)return;
         var stand=event.getBladeStand();var blade=event.getBlade();var soul=player.getMainHandItem();
         if(blade.isEmpty())return;

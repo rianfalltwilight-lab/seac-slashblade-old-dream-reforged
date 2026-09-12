@@ -18,7 +18,7 @@ public abstract class LegacyBladePoseMixin {
                                           float limb,float amount,float partial,float age,float yaw,float pitch,CallbackInfo ci) {
         if(!LegacyHeldRenderer.handles(entity))return;
         // This framework carry renderer is static and does not consume VMD animation.
-        renderOffhandItem(poses,buffers,light,entity);
+        if(!org.scex.slashbladelegacy.LegacyDualWield.hasOffhandBlade(entity))renderOffhandItem(poses,buffers,light,entity);
         LegacyHeldRenderer.render(poses,buffers,light,entity,partial,true);
         ci.cancel();
     }

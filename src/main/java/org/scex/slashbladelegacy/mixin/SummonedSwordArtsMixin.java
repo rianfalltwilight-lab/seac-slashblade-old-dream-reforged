@@ -17,10 +17,10 @@ import org.spongepowered.asm.mixin.injection.At;
 public abstract class SummonedSwordArtsMixin {
     @org.spongepowered.asm.mixin.injection.Inject(method="onInputChange",at=@At("HEAD"),cancellable=true)
     private void legacyRange(InputCommandEvent event,org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
-        if(org.scex.slashbladelegacy.LegacyRangeAttack.enabled())ci.cancel();
+        if(org.scex.slashbladelegacy.LegacyMode.legacy(event.getEntity()))ci.cancel();
     }
     @WrapOperation(method="onInputChange",at=@At(value="INVOKE",target="Ljava/util/Optional;ifPresent(Ljava/util/function/Consumer;)V"),require=1,expect=1,allow=1)
     private void legacySingleShot(Optional<ISlashBladeState> state,Consumer<ISlashBladeState> action,Operation<Void> original,InputCommandEvent event) {
-        if(!SummonedBladeMode.enabled(event.getEntity().getMainHandItem()))original.call(state,action);
+        if(org.scex.slashbladelegacy.LegacyMode.modern(event.getEntity()) || !SummonedBladeMode.enabled(event.getEntity().getMainHandItem()))original.call(state,action);
     }
 }

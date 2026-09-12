@@ -19,7 +19,7 @@ public final class LegacyBossRewards {
     private static final WeakHashMap<LivingEntity,Boolean> REWARDED=new WeakHashMap<>();
     private LegacyBossRewards() {}
     public static void hit(ItemStack blade,LivingEntity target,LivingEntity attacker) {
-        if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !(attacker instanceof ServerPlayer player)
+        if(!org.scex.slashbladelegacy.LegacyMode.legacy(attacker) || !(attacker instanceof ServerPlayer player)
                 || BladeStateAccess.of(blade).isEmpty() || target.isAlive() || target.deathTime!=0 || !(target instanceof Mob))return;
         boolean boss=target instanceof WitherBoss || target instanceof EnderDragon || target.getType().is(BOSSES);
         if(!(target instanceof Enemy) && !boss || !boss && !target.hasCustomName() || REWARDED.put(target,true)!=null)return;

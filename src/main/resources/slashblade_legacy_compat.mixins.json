@@ -5,6 +5,12 @@
   "plugin": "org.scex.slashbladelegacy.mixin.LegacyMixinPlugin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "LegacyItemModeMixin",
+    "LegacySchedulerAccessor",
+    "LegacyAnvilPlayerAccessor",
+    "LegacyAnvilModeMixin",
+    "LegacyEnchantingModeMixin",
+    "LegacyTooltipModeMixin",
     "SummonedSwordArtsMixin",
     "LegacyChargeMixin",
     "LegacyArtsMixin",
@@ -23,6 +29,7 @@
     "LegacyDurabilityMixin",
     "LegacyDamageBoundaryMixin",
     "LegacyUseAbilitiesMixin",
+    "LegacyDualWieldMixin",
     "LegacyJustWindowMixin",
     "GaiaTargetingMixin",
     "TargetingCopyMixin",
@@ -36,6 +43,7 @@
     "LegacySlashVisualMixin",
     "LegacyRankMixin",
     "LegacyRankScaleMixin",
+    "LegacyRankModeMixin",
     "LegacyDriveKnockbackMixin",
     "LegacyLandingMixin"
   ],

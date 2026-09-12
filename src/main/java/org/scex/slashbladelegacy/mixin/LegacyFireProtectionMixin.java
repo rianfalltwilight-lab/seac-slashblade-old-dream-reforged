@@ -13,6 +13,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class LegacyFireProtectionMixin {
     @Inject(method="onLivingOnFire",at=@At("HEAD"),cancellable=true)
     private static void legacyCompat$activeFireResistance(LivingIncomingDamageEvent event,CallbackInfo ci) {
-        if(LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && BladeStateAccess.of(event.getEntity().getMainHandItem()).isPresent())ci.cancel();
+        if(org.scex.slashbladelegacy.LegacyMode.legacy(event.getEntity()) && BladeStateAccess.of(event.getEntity().getMainHandItem()).isPresent())ci.cancel();
     }
 }

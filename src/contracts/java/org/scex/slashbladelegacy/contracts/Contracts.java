@@ -30,7 +30,7 @@ import java.util.UUID;
 public final class Contracts {
     public Contracts() { NeoForge.EVENT_BUS.addListener(this::started); }
     private void started(ServerStartedEvent event) {
-        if(Boolean.getBoolean("scex.legacy.clientProbe"))return;
+        if(Boolean.getBoolean("scex.legacy.clientProbe") || Boolean.getBoolean("scex.legacy.dualModeProbe"))return;
         if(Boolean.getBoolean("scex.legacy17Load")){
             ContractWorldReady.prepare(event.getServer(),preparation -> Legacy17LoadProbe.start(event.getServer(),preparation));return;
         }
@@ -41,6 +41,10 @@ public final class Contracts {
         report.put("fixture_preparation",preparation);
         try {
             require(Boolean.TRUE.equals(preparation.get("ready")),"Fixture entity lifecycle not ready: "+preparation);
+            if(Files.exists(Path.of("dual-mode-contracts.flag"))){DualModeContracts.run(server,report);ProjectileInteropContracts.run(server,report);BatchPhantomContracts.run(server,report);DualWieldContracts.run(server,report);Legacy17Contracts.run(server,report);report.put("success",true);return;}
+            if(Files.exists(Path.of("phantom-pack-contracts.flag"))){PhantomPackContracts.run(server,report);report.put("success",true);return;}
+            if(Files.exists(Path.of("projectile-interop-contracts.flag"))){ProjectileInteropContracts.run(server,report);if(Files.exists(Path.of("stability-full-contracts.flag"))){BatchPhantomContracts.run(server,report);DualWieldContracts.run(server,report);Legacy17Contracts.run(server,report);}report.put("success",true);return;}
+            if(Files.exists(Path.of("dual-wield-contracts.flag"))){DualWieldContracts.run(server,report);Legacy17Contracts.run(server,report);report.put("success",true);return;}
             if(Files.exists(Path.of("batch-phantom-contracts.flag"))){BatchPhantomContracts.run(server,report);report.put("success",true);return;}
             if(Files.exists(Path.of("feather-contracts.flag"))){FeatherContracts.run(server,report);report.put("success",true);return;}
             if(Files.exists(Path.of("super-contracts.flag"))){Super17Contracts.run(server,report);report.put("success",true);return;}
@@ -153,6 +157,7 @@ public final class Contracts {
         } catch (Throwable failure) {
             report.put("success",false);
             report.put("error",failure.toString());
+            report.put("error_stack",java.util.Arrays.stream(failure.getStackTrace()).map(Object::toString).toList());
             failure.printStackTrace();
         } finally {
             ContractWorldReady.release();

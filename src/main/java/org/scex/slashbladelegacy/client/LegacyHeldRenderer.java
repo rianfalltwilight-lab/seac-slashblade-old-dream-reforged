@@ -25,7 +25,7 @@ public final class LegacyHeldRenderer {
     private LegacyHeldRenderer() {}
 
     public static boolean handles(LivingEntity entity) {
-        return LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && BladeStateAccess.of(entity.getMainHandItem()).isPresent()
+        return org.scex.slashbladelegacy.LegacyMode.legacy(entity) && BladeStateAccess.of(entity.getMainHandItem()).isPresent()
                 && !SwordType.from(entity.getMainHandItem()).contains(SwordType.NOSCABBARD)
                 && !entity.getType().is(mods.flammpfeil.slashblade.data.tag.SlashBladeEntityTypeTagProvider.EntityTypeTags.RENDER_LAYER_BLACKLIST);
     }
@@ -59,27 +59,18 @@ public final class LegacyHeldRenderer {
         float progress=LegacyBladePose.progress(move,swing);
         boolean barrier=entity instanceof net.minecraft.world.entity.player.Player player
                 && LegacyProjectileGuard.barrierAvailable(player,player.getTicksUsingItem());
+        LegacyMove mainPose=LegacyDualWield.active(entity)?LegacyDualWield.mainHandPose(move):null;
+        if(adjust && LegacyDualWield.hasOffhandBlade(entity))
+            offhandCarry(poses,buffers,light,entity,mainPose!=null);
         var model=BladeModelManager.getInstance().getModel(state.getModel().orElse(DefaultResources.resourceDefaultModel));
         var texture=state.getTexture().orElse(DefaultResources.resourceDefaultTexture);
         poses.pushPose();
         try {
             if(adjust){var offset=state.getAdjust();poses.translate(offset.x/10,-offset.y/10,-offset.z/10);}
-            String part=state.isBroken()?"blade_damaged":"blade";
-            int copies=move.scabbard || progress==1?1:3;
-            for(int blur=0;blur<copies;blur++) {
-                float p=progress*(float)Math.pow(.8,blur),opacity=(float)Math.pow(.5,blur);
-                poses.pushPose();
-                try {
-                    poses.mulPose(LegacyBladePose.matrix(move,p,false,barrier,entity.tickCount+partial));
-                    if(barrier && move==LegacyMove.NONE)p=.5f;
-                    draw(blade,model,part,texture,poses,buffers,light,opacity,false);
-                    if(!move.scabbard)draw(blade,model,part+"_unsheathe",texture,poses,buffers,light,opacity,false);
-                    draw(blade,model,part+"_luminous",texture,poses,buffers,light,opacity,true);
-                    if(!move.scabbard)draw(blade,model,part+"_unsheathe_luminous",texture,poses,buffers,light,opacity,true);
-                    if(barrier || !move.scabbard && move!=LegacyMove.NOUTOU && move!=LegacyMove.HIRA_TUKI && move!=LegacyMove.HELM_LANDING)
-                        trail(blade,poses,buffers,light,state.isBroken(),state.getColorCode(),p,opacity,barrier);
-                } finally {poses.popPose();}
-            }
+            if(mainPose!=null) {
+                renderBlade(poses,buffers,light,entity.getOffhandItem(),move,progress,barrier,entity.tickCount+partial);
+                renderBlade(poses,buffers,light,blade,mainPose,1,barrier,entity.tickCount+partial);
+            } else renderBlade(poses,buffers,light,blade,move,progress,barrier,entity.tickCount+partial);
             poses.pushPose();
             try {
                 poses.mulPose(LegacyBladePose.matrix(move,progress,true));
@@ -88,6 +79,49 @@ public final class LegacyHeldRenderer {
                 if(state.isCharged(entity))BladeRenderState.renderChargeEffect(blade,entity.tickCount+partial,model,"effect",
                         ResourceLocation.withDefaultNamespace("textures/entity/creeper/creeper_armor.png"),poses,buffers,light);
             } finally {poses.popPose();}
+        } finally {BladeRenderState.resetCol();poses.popPose();}
+    }
+
+    private static void renderBlade(PoseStack poses,MultiBufferSource buffers,int light,ItemStack blade,
+                                    LegacyMove move,float progress,boolean barrier,float ticks) {
+            var state=BladeStateAccess.of(blade).orElseThrow();
+            var model=BladeModelManager.getInstance().getModel(state.getModel().orElse(DefaultResources.resourceDefaultModel));
+            var texture=state.getTexture().orElse(DefaultResources.resourceDefaultTexture);
+            String part=state.isBroken()?"blade_damaged":"blade";
+            int copies=move.scabbard || progress==1?1:3;
+            for(int blur=0;blur<copies;blur++) {
+                float p=progress*(float)Math.pow(.8,blur),opacity=(float)Math.pow(.5,blur);
+                poses.pushPose();
+                try {
+                    poses.mulPose(LegacyBladePose.matrix(move,p,false,barrier,ticks));
+                    if(barrier && move==LegacyMove.NONE)p=.5f;
+                    draw(blade,model,part,texture,poses,buffers,light,opacity,false);
+                    if(!move.scabbard)draw(blade,model,part+"_unsheathe",texture,poses,buffers,light,opacity,false);
+                    draw(blade,model,part+"_luminous",texture,poses,buffers,light,opacity,true);
+                    if(!move.scabbard)draw(blade,model,part+"_unsheathe_luminous",texture,poses,buffers,light,opacity,true);
+                    if(barrier || !move.scabbard && move!=LegacyMove.NOUTOU && move!=LegacyMove.HIRA_TUKI
+                            && move!=LegacyMove.STINGER && move!=LegacyMove.HELM_LANDING)
+                        trail(blade,poses,buffers,light,state.isBroken(),state.getColorCode(),p,opacity,barrier);
+                } finally {poses.popPose();}
+            }
+    }
+
+    private static void offhandCarry(PoseStack poses,MultiBufferSource buffers,int light,LivingEntity entity,boolean drawn) {
+        var blade=entity.getOffhandItem();var state=BladeStateAccess.of(blade).orElseThrow();
+        var model=BladeModelManager.getInstance().getModel(state.getModel().orElse(DefaultResources.resourceDefaultModel));
+        var texture=state.getTexture().orElse(DefaultResources.resourceDefaultTexture);
+        poses.pushPose();
+        try {
+            if(entity.isCrouching()){poses.translate(0,.203125,0);poses.mulPose(Axis.XP.rotationDegrees(30));}
+            poses.translate(0,-state.getAdjust().y/10,0);
+            poses.mulPose(LegacyBladePose.offhandCarry());
+            if(!drawn) {
+                String part=state.isBroken()?"blade_damaged":"blade";
+                draw(blade,model,part,texture,poses,buffers,light,1,false);
+                draw(blade,model,part+"_luminous",texture,poses,buffers,light,1,true);
+            }
+            draw(blade,model,"sheath",texture,poses,buffers,light,1,false);
+            draw(blade,model,"sheath_luminous",texture,poses,buffers,light,1,true);
         } finally {BladeRenderState.resetCol();poses.popPose();}
     }
 

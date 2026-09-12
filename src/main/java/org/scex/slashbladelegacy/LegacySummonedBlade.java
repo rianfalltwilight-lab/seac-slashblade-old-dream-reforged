@@ -219,13 +219,14 @@ public final class LegacySummonedBlade extends EntityAbstractSummonedSword {
         return nearest;
     }
     @Override protected void onHitEntity(EntityHitResult result) {
-        if(level().isClientSide || attachedId!=null || isRemoved()) return;
+        if(level().isClientSide || attachedId!=null || isRemoved() || LegacySwordImpact.notifying(this)) return;
         if(result.getEntity() instanceof LivingEntity target && eligible(target) && (LegacyRangeAttack.enabled() || clearPath(target))) {
             if(strike(target,Math.max(1,getDamage()))) {
                 attachedId=target.getUUID(); attachedAge=0; setHitEntity(target); setDelay(210);
                 attachedOffset=position().subtract(target.position());attachedYaw=getYRot()-target.getYRot();attachedPitch=getXRot()-target.getXRot();
                 entityData.set(SPIN,(level().getGameTime()%6+random.nextFloat())*60);
                 setDeltaMovement(Vec3.ZERO);
+                LegacySwordImpact.post(this,target);
             }
         }
     }

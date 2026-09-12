@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class LegacyGuardMixin {
     @Inject(method="onLivingAttack", at=@At("HEAD"), cancellable=true)
     private void legacyCompat$guard(LivingIncomingDamageEvent event, CallbackInfo ci) {
-        if (!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !(event.getEntity() instanceof Player)
+        if (!org.scex.slashbladelegacy.LegacyMode.legacy(event.getEntity()) || !(event.getEntity() instanceof Player)
                 || BladeStateAccess.of(event.getEntity().getMainHandItem()).isEmpty()) return;
         LegacyJustGuard.incoming(event);
         ci.cancel();

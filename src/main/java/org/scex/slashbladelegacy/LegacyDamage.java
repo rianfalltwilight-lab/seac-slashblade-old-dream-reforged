@@ -39,7 +39,7 @@ public final class LegacyDamage {
     public static void update(Player player) {
         // A replacement LocalPlayer starts with an empty rank attachment after changing worlds.
         // Inventory synchronization owns this component; do not overwrite it with that temporary zero.
-        if (player.level().isClientSide || !LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT)) return;
+        if (player.level().isClientSide || !org.scex.slashbladelegacy.LegacyMode.legacy(player)) return;
         var blade = player.getMainHandItem();
         BladeStateAccess.of(blade).ifPresent(state -> {
             float value = amplifier(player, blade);
@@ -90,6 +90,7 @@ public final class LegacyDamage {
         // temporary mutation of the player's actual attributes is involved in an area hit.
         var attribute = new AttributeInstance(Attributes.ATTACK_DAMAGE, ignored -> {});
         attribute.replaceFrom(player.getAttribute(Attributes.ATTACK_DAMAGE));
+        LegacyDualWield.removeBorrowedMainModifiers(player,attribute);
         blade.getAttributeModifiers().forEach(EquipmentSlot.MAINHAND, (key, modifier) -> {
             if (key.equals(Attributes.ATTACK_DAMAGE)) {
                 attribute.removeModifier(modifier.id());attribute.addTransientModifier(modifier);

@@ -5,6 +5,12 @@ import static org.scex.slashbladelegacy.LegacyMove.*;
 
 /** Direct matrix translation of 1.7.10 r87 ItemRendererBaseWeapon, blade/sheath transforms. */
 public final class LegacyBladePose {
+    /** 1.12.2 LayerSlashBlade.renderBack(forceNinja=true), without model-specific offsets. */
+    public static Matrix4f offhandCarry() {
+        return new Matrix4f().translate(0,.4f,.25f).scale(.075f)
+                .rotateZ(radians(-30)).rotateY(radians(-180)).translate(0,-12.5f,0)
+                .scale(.095f).rotateZ(radians(-90));
+    }
     public static boolean handlesCarry(String carry,LegacyMove move) {
         return carry.equals("DEFAULT") || carry.equals("KATANA") || carry.equals("PSO2") && move!=NONE;
     }

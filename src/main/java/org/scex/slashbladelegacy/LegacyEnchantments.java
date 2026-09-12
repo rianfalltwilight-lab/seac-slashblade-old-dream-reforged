@@ -55,7 +55,7 @@ public final class LegacyEnchantments {
     }
 
     public static void stand(SlashBladeEvent.BladeStandAttackEvent event) {
-        if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || event.isCanceled()
+        if(!org.scex.slashbladelegacy.LegacyMode.legacy(event.getDamageSource().getEntity()) || event.isCanceled()
                 || !(event.getDamageSource().getEntity() instanceof Player player)
                 || !(player.level() instanceof ServerLevel level))return;
         var soul=player.getMainHandItem();var stand=event.getBladeStand();var blade=event.getBlade();

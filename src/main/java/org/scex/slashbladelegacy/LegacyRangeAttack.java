@@ -37,6 +37,7 @@ public final class LegacyRangeAttack {
     public static void clear(Player player) { PRESSES.remove(player);LAST_RELEASE.remove(player); }
     public static void input(InputCommandEvent event) {
         var player=event.getEntity();
+        if(!LegacyMode.legacy(player))return;
         boolean before=event.getOld().contains(InputCommand.M_DOWN),after=event.getCurrent().contains(InputCommand.M_DOWN);
         long now=player.level().getGameTime();
         if(!before && after) {
@@ -64,7 +65,7 @@ public final class LegacyRangeAttack {
         return Art.SPIRAL;
     }
     private static boolean valid(ServerPlayer player,Press press) {
-        return enabled() && player.isAlive() && player.getMainHandItem()==press.blade()
+        return org.scex.slashbladelegacy.LegacyMode.legacy(player) && player.isAlive() && player.getMainHandItem()==press.blade()
                 && player.level().dimension().location().equals(press.dimension()) && player.level().getGameTime()>=press.tick();
     }
     public static UUID sourceId(ItemStack blade) {
@@ -90,7 +91,7 @@ public final class LegacyRangeAttack {
         return result;
     }
     public static void perform(ServerPlayer player,ItemStack blade,Art art) {
-        if(!enabled() || !player.isAlive() || player.getMainHandItem()!=blade)return;
+        if(!org.scex.slashbladelegacy.LegacyMode.legacy(player) || !player.isAlive() || player.getMainHandItem()!=blade)return;
         var state=BladeStateAccess.of(blade).orElse(null);
         if(state==null || state.isBroken() || state.isSealed() || !SwordType.from(blade).contains(SwordType.BEWITCHED))return;
         int power=blade.getEnchantmentLevel(player.registryAccess().holderOrThrow(Enchantments.POWER));

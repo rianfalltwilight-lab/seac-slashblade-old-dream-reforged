@@ -13,12 +13,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class LegacyEnchantmentsMixin {
     @Inject(method="supportsEnchantment",at=@At("HEAD"),cancellable=true)
     private void legacyCompat$support(ItemStack blade,Holder<Enchantment> enchantment,CallbackInfoReturnable<Boolean> cir) {
-        if(LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && LegacyEnchantments.vanilla(enchantment))
+        if(org.scex.slashbladelegacy.LegacyMode.legacy(blade) && LegacyEnchantments.vanilla(enchantment))
             cir.setReturnValue(LegacyEnchantments.sword(enchantment));
     }
     @Inject(method="isPrimaryItemFor",at=@At("HEAD"),cancellable=true)
     private void legacyCompat$table(ItemStack blade,Holder<Enchantment> enchantment,CallbackInfoReturnable<Boolean> cir) {
-        if(LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && LegacyEnchantments.vanilla(enchantment))
+        if(org.scex.slashbladelegacy.LegacyMode.legacy(blade) && LegacyEnchantments.vanilla(enchantment))
             cir.setReturnValue(LegacyEnchantments.sword(enchantment));
     }
 }

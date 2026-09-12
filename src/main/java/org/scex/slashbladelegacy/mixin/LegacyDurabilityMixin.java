@@ -15,7 +15,7 @@ public abstract class LegacyDurabilityMixin {
     @Inject(method="hurtAndBreak(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;Ljava/util/function/Consumer;)V",at=@At("HEAD"),cancellable=true)
     private void legacyCompat$durability(int amount,ServerLevel level,LivingEntity user,Consumer<Item> onBroken,CallbackInfo ci) {
         var blade=(ItemStack)(Object)this;
-        if(blade.getItem() instanceof ItemSlashBlade && LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT)) {
+        if(blade.getItem() instanceof ItemSlashBlade && org.scex.slashbladelegacy.LegacyMode.legacy(user)) {
             LegacyDurability.hurt(blade,amount,level,user,onBroken);ci.cancel();
         }
     }

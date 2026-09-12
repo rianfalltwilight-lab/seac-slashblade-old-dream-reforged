@@ -18,6 +18,7 @@ public abstract class LegacySheathingRepairMixin {
         var player=event.getAttackingPlayer();
         if(player==null || !LegacySheathingRepair.handles(player.getMainHandItem()))return;
         var blade=player.getMainHandItem();var state=BladeStateAccess.of(blade).orElseThrow();
+        org.scex.slashbladelegacy.LegacyDualWield.recordExperience(player,event.getEntity(),event.getDroppedExperience());
         var souls=new SlashBladeEvent.AddProudSoulEvent(blade,state,Math.max(0,event.getDroppedExperience()));
         NeoForge.EVENT_BUS.post(souls);
         if(player.getMainHandItem()==blade)LegacySheathingRepair.credit(player,blade,souls.getNewCount());

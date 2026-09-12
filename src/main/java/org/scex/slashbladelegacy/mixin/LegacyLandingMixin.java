@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public interface LegacyLandingMixin {
     @Inject(method="synchronizeComboSeq",at=@At("HEAD"),cancellable=true)
     private void legacyCompat$landingClock(LivingEntity user,ResourceLocation loc,CallbackInfo ci) {
-        if(!user.level().isClientSide && LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && loc.equals(LegacyCombat.id(LegacyMove.HELM_LANDING))) {
+        if(!user.level().isClientSide && org.scex.slashbladelegacy.LegacyMode.legacy(user) && loc.equals(LegacyCombat.id(LegacyMove.HELM_LANDING))) {
             ((ISlashBladeState)(Object)this).updateComboSeq(user,loc);ci.cancel();
         }
     }

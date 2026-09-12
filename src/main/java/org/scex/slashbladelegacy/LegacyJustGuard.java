@@ -32,14 +32,14 @@ public final class LegacyJustGuard {
     }
     private LegacyJustGuard() {}
     public static void begin(Player player, ItemStack blade) {
-        if (player.level().isClientSide || !LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT)
+        if (player.level().isClientSide || !org.scex.slashbladelegacy.LegacyMode.legacy(player)
                 || player.getMainHandItem() != blade || BladeStateAccess.of(blade).isEmpty()) return;
         var previous = WINDOWS.get(player);
         if (previous != null && valid(player, previous) && previous.guarded >= 0) return;
         WINDOWS.put(player, new Window(player, blade));
     }
     private static boolean valid(Player player, Window window) {
-        return LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && LegacyDamage.holding(player, window.blade)
+        return org.scex.slashbladelegacy.LegacyMode.legacy(player) && LegacyDamage.holding(player, window.blade)
                 && player.level().dimension().equals(window.dimension);
     }
     public static void incoming(LivingIncomingDamageEvent event) {

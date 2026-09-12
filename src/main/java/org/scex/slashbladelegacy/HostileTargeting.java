@@ -13,6 +13,7 @@ public final class HostileTargeting {
     public static final TagKey<EntityType<?>> ADDITIONAL=TagKey.create(Registries.ENTITY_TYPE,
             ResourceLocation.parse("slashblade_legacy_compat:additional_hostile_targets"));
     public static final ThreadLocal<LivingEntity> REVENGE_CONTEXT=new ThreadLocal<>();
+    public static final ThreadLocal<LivingEntity> SOURCE_CONTEXT=new ThreadLocal<>();
     private HostileTargeting() {}
     public static boolean isAdditionalHostile(LivingEntity target) {
         if(GAIA.equals(BuiltInRegistries.ENTITY_TYPE.getKey(target.getType())))

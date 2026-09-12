@@ -14,8 +14,13 @@ public abstract class RevengeContextMixin {
     @WrapMethod(method="test(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/LivingEntity;)Z")
     private boolean legacyCompat$scopedRevenge(LivingEntity attacker,LivingEntity target,Operation<Boolean> original) {
         var previous=HostileTargeting.REVENGE_CONTEXT.get();HostileTargeting.REVENGE_CONTEXT.remove();
+        var previousSource=HostileTargeting.SOURCE_CONTEXT.get();
+        if(attacker==null)HostileTargeting.SOURCE_CONTEXT.remove();else HostileTargeting.SOURCE_CONTEXT.set(attacker);
         try{return original.call(attacker,target);}
-        finally{if(previous==null)HostileTargeting.REVENGE_CONTEXT.remove();else HostileTargeting.REVENGE_CONTEXT.set(previous);}
+        finally{
+            if(previous==null)HostileTargeting.REVENGE_CONTEXT.remove();else HostileTargeting.REVENGE_CONTEXT.set(previous);
+            if(previousSource==null)HostileTargeting.SOURCE_CONTEXT.remove();else HostileTargeting.SOURCE_CONTEXT.set(previousSource);
+        }
     }
     @Redirect(method="test(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/LivingEntity;)Z",
             at=@At(value="INVOKE",target="Lnet/minecraft/world/entity/LivingEntity;addTag(Ljava/lang/String;)Z"))

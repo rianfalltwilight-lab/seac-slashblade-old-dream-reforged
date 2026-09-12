@@ -14,6 +14,7 @@ public final class LegacyRank {
     public static void synchronize(Player player) {
         if (!(player instanceof net.minecraft.server.level.ServerPlayer server)
                 || !LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT)) return;
+        LegacyMode.bindRank(player);
         var rank=player.getData(mods.flammpfeil.slashblade.capability.concentrationrank.CapabilityConcentrationRank.RANK_POINT);
         net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(server,
                 new mods.flammpfeil.slashblade.network.RankSyncMessage(rank.getRankPoint(player.level().getGameTime())));
@@ -22,7 +23,7 @@ public final class LegacyRank {
     public static boolean award(IConcentrationRank rank,DamageSource source) {
         if(LegacyProjectileDamage.award(rank,source))return true;
         if(LegacyDamage.ownsRankSource(source))return true;
-        if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) || !LegacyCompat.isEnabled(LegacyCompat.LEGACY_RANK)
+        if(!org.scex.slashbladelegacy.LegacyMode.legacy(source.getEntity()) || !LegacyCompat.isEnabled(LegacyCompat.LEGACY_RANK)
                 || !(source.getEntity() instanceof Player player) || player.level().isClientSide)return false;
         var state=BladeStateAccess.of(player.getMainHandItem()).orElse(null);
         if(state==null)return false;
@@ -43,7 +44,7 @@ public final class LegacyRank {
             case NONE,NOUTOU -> 0;
             default -> .3f;
         };
-        awardAction(player,rank,move.name(),factor);
+        awardAction(player,rank,move==LegacyMove.STINGER?LegacyMove.RAPID_SLASH.name():move.name(),factor);
     }
     public static void hurt(net.minecraft.world.entity.LivingEntity victim,IConcentrationRank rank,DamageSource source) {
         if(!(victim instanceof Player) || victim.level().isClientSide)return;
@@ -56,7 +57,7 @@ public final class LegacyRank {
         rank.setRawRankPoint(next);rank.setLastUpdte(now);rank.addRankPoint(victim,0);
     }
     public static void awardAction(Player player,IConcentrationRank rank,String action,float factor) {
-        if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_RANK) || factor==0)return;
+        if(!org.scex.slashbladelegacy.LegacyMode.enabled(player,LegacyCompat.LEGACY_RANK) || factor==0)return;
         int legacyPoints=(int)(100*Math.abs(factor));
         long now=player.level().getGameTime();
         String key="slashblade_legacy_compat.rank_cd."+action;
