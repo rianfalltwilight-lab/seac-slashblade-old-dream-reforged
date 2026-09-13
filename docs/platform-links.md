@@ -1,6 +1,6 @@
 # Project links for CurseForge and Modrinth
 
-Project name: **SlashBlade Reborn**  
+Project name: **SlashBlade Reborn**
 Chinese name: **旧梦重铸**
 
 The existing GitHub repository and release filenames also use **SEAC SlashBlade Old Dream Reforged**. The Minecraft mod ID remains `slashblade_legacy_compat`.
@@ -41,4 +41,3 @@ This disclosure concerns this addon's development and does not characterize the 
 As checked on 2026-09-13, Modrinth prohibits AI-generated or AI-derived images on project pages, including icons, banners, and galleries. The existing cover must not be reused there. Leave the page icon unset until suitable artwork is available. Disclosure also does not guarantee eligibility for public listing: primarily AI-generated content is subject to separate restrictions.
 
 References: [Modrinth content rules](https://modrinth.com/legal/rules), [AI usage policy](https://support.modrinth.com/en/articles/16551575-disclosure-and-usage-of-ai), [content disclosures](https://support.modrinth.com/en/articles/16567675-content-disclosures).
-

@@ -71,4 +71,3 @@ Retain applicable upstream notices when redistributing the corresponding materia
 用于 CurseForge / Modrinth 的许可证说明地址：
 
 https://github.com/rianfalltwilight-lab/seac-slashblade-old-dream-reforged/blob/main/LICENSE.md
-
