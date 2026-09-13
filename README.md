@@ -1,4 +1,8 @@
-# SEAC拔刀剑附属 旧梦重铸
+# SlashBlade Reborn（旧梦重铸）
+
+此前以 **SEAC拔刀剑附属 旧梦重铸 / SEAC SlashBlade Old Dream Reforged** 名称发布；本仓库、既有发行文件与 modId 沿用原有标识。
+
+**[完整许可证说明](LICENSE.md)** · **[CurseForge / Modrinth 填写地址](docs/platform-links.md)**
 
 ![Old Dream Reforged cover](src/main/resources/cover.png)
 
@@ -26,6 +30,6 @@ MC 1.21.1 / NeoForge 21.1.248 / Java 21。实际验证重锋 2.0.5-1.21.1；版�
 
 ## 许可证与披露
 
-独立代码 [MIT](LICENSE)，旧版衍生内容保留 [r87 原文](LICENSE-LEGACY17-README.txt) 及 [1.12 原文](LICENSE-LEGACY-README.txt)。参见 [第三方来源](THIRD-PARTY-NOTICES.md)、[NOTICE](NOTICE) 与 [AI 披露](AI-GENERATED.md)。
+项目级许可名称为 **MIT-and-Third-Party-Licenses**，完整范围见 [LICENSE.md](LICENSE.md)。独立原创贡献采用 [MIT](LICENSE)，旧版衍生内容保留 [r87 原文](LICENSE-LEGACY17-README.txt) 及 [1.12 原文](LICENSE-LEGACY-README.txt)。参见 [第三方来源](THIRD-PARTY-NOTICES.md)、[NOTICE](NOTICE) 与 [AI 披露](AI-GENERATED.md)。
 
 [English](README_en.md)

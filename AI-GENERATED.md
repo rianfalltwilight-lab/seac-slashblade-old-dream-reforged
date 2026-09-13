@@ -1,6 +1,8 @@
 # AI involvement disclosure
 
-OpenAI Codex materially assisted source and bytecode analysis, comparison with the legacy behavior baseline, implementation support, contract-harness preparation, validation interpretation, public-source auditing, documentation, and release preparation.
+OpenAI Codex generated substantial portions of this addon's adaptation and compatibility code under the maintainer's direction. It also assisted source and bytecode analysis, comparison with the legacy behavior baseline, contract-harness preparation, validation interpretation, public-source auditing, documentation, and release preparation.
+
+AI generated the proposed project-page summary, description, and initial changelog for CurseForge and Modrinth. This disclosure describes work performed for this addon; it does not characterize the development of upstream SlashBlade projects.
 
 A human maintainer chose the product name, selected the compatibility target, directed the work, reviewed the intended scope, and explicitly authorized public GitHub publication.
 
