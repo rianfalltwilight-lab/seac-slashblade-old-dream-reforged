@@ -5,6 +5,7 @@
   "plugin": "org.scex.slashbladelegacy.mixin.LegacyMixinPlugin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "BoundedTimelineMixin",
     "LegacyItemModeMixin",
     "LegacySchedulerAccessor",
     "LegacyAnvilPlayerAccessor",

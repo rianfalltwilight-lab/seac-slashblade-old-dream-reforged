@@ -2,17 +2,17 @@
 
 ![Old Dream Reforged cover](src/main/resources/cover.png)
 
-本版更新与验证：[说明](docs/releases/0.3.0-dev.1.md)。
+本版更新与验证：[说明](docs/releases/0.3.0-dev.2.md)。
 
-**[⬇ 直接下载旧梦重铸 0.3.0-dev.1 运行 JAR](https://github.com/rianfalltwilight-lab/seac-slashblade-old-dream-reforged/releases/download/v0.3.0-dev.1/SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-0.3.0-dev.1.jar)**
+**[⬇ 直接下载旧梦重铸 0.3.0-dev.2 运行 JAR](https://github.com/rianfalltwilight-lab/seac-slashblade-old-dream-reforged/releases/download/v0.3.0-dev.2/SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-0.3.0-dev.2.jar)**
 
 适用于 Minecraft 1.21.1；下载后放入 mods。无需下载源码或选择 Git 标签。
 
-非官方 SlashBlade: Resharpened 双端附属，当前 **0.3.0-dev.1**。以 **mc1.7.10-r87** 为主动行为基准，保留现代保护接口及明确兼容适配。开发预发布，未部署生产。
+非官方 SlashBlade: Resharpened 双端附属，当前 **0.3.0-dev.2**。以 **mc1.7.10-r87** 为主动行为基准，保留现代保护接口及明确兼容适配。开发预发布，未部署生产。
 
 MC 1.21.1 / NeoForge 21.1.248 / Java 21。实际验证重锋 2.0.5-1.21.1；版本号软绑定不代表所有内部 API 兼容。客户端和服务器须使用同一版本；modId 为 slashblade_legacy_compat。
 
-恢复旧连段、范围与伤害、幻影剑/剑阵/SB、九种基础 SA、附魔/锻造/断刀/刀魂与修复；保留配置生命周期修正、第一人称视角补偿、收刀嘲讽和神钢抢夺 III。详情与外部候选关系见 [更新说明](docs/releases/0.3.0-dev.1.md) 和 [验证范围](VALIDATION.md)。
+恢复旧连段、范围与伤害、幻影剑/剑阵/SB、九种基础 SA、附魔/锻造/断刀/刀魂与修复；保留配置生命周期修正、第一人称视角补偿、收刀嘲讽和神钢抢夺 III。详情与外部候选关系见 [更新说明](docs/releases/0.3.0-dev.2.md) 和 [验证范围](VALIDATION.md)。
 
 ## 构建
 

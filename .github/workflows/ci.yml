@@ -32,8 +32,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          runtime='build/libs/SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-0.3.0-dev.1.jar'
-          sources='build/libs/SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-0.3.0-dev.1-sources.jar'
+          runtime='build/libs/SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-0.3.0-dev.2.jar'
+          sources='build/libs/SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-0.3.0-dev.2-sources.jar'
           test -f "${runtime}"
           jar --validate --file "${runtime}"
           jar --validate --file "${sources}"

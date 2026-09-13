@@ -41,6 +41,7 @@ public final class Contracts {
         report.put("fixture_preparation",preparation);
         try {
             require(Boolean.TRUE.equals(preparation.get("ready")),"Fixture entity lifecycle not ready: "+preparation);
+            if(Files.exists(Path.of("maid-timeline-contracts.flag"))){MaidTimelineContracts.run(server,report);DualModeContracts.run(server,report);ProjectileInteropContracts.run(server,report);BatchPhantomContracts.run(server,report);DualWieldContracts.run(server,report);Legacy17Contracts.run(server,report);report.put("success",true);return;}
             if(Files.exists(Path.of("dual-mode-contracts.flag"))){DualModeContracts.run(server,report);ProjectileInteropContracts.run(server,report);BatchPhantomContracts.run(server,report);DualWieldContracts.run(server,report);Legacy17Contracts.run(server,report);report.put("success",true);return;}
             if(Files.exists(Path.of("phantom-pack-contracts.flag"))){PhantomPackContracts.run(server,report);report.put("success",true);return;}
             if(Files.exists(Path.of("projectile-interop-contracts.flag"))){ProjectileInteropContracts.run(server,report);if(Files.exists(Path.of("stability-full-contracts.flag"))){BatchPhantomContracts.run(server,report);DualWieldContracts.run(server,report);Legacy17Contracts.run(server,report);}report.put("success",true);return;}
