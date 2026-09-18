@@ -33,6 +33,9 @@ public final class LegacyCompat {
     public static final ModConfigSpec.BooleanValue SHEATHING_REPAIR;
     public static final ModConfigSpec.BooleanValue LEGACY_RANK;
     public static final ModConfigSpec.BooleanValue LEGACY_TAUNT;
+    public static final ModConfigSpec.BooleanValue SUPER_RESPECT_UNBREAKABLE;
+    public static final ModConfigSpec.BooleanValue FRIENDLY_TARGETS;
+    public static final ModConfigSpec.BooleanValue SOUL_FEEDING;
     static {
         var builder = new ModConfigSpec.Builder();
         BROKEN_DAMAGE = builder.comment("Restore the +2 weapon damage modifier documented in legacy 1.7/1.12.2 for broken blades. Does not repair the blade.").define("restoreBrokenDamage", true);
@@ -45,6 +48,12 @@ public final class LegacyCompat {
         SHEATHING_REPAIR = builder.comment("Defer default-root kill XP repair until successful legacy sheathing; requires 1000 proud souls. No extra soul award.").define("restoreSheathingRepair", true);
         LEGACY_RANK=builder.comment("Restore legacy melee rank awards and repeat-move diminishing returns; preserve native rank HUD and networking.").define("restoreLegacyRank",true);
         LEGACY_TAUNT=builder.comment("Completed stationary sheathing taunts visible hostile mobs within legacy 10/5/10 expansion; 30s Strength II, Speed II, Resistance I, particles, sound and rank.").define("restoreLegacyTaunt",true);
+        SUPER_RESPECT_UNBREAKABLE=builder.comment("怀旧超SA尊重无法破坏：true 不扣无法破坏刀的耐久；false 严格按r87强制设置为半耐久。",
+                "Honor the Unbreakable component for legacy Super SA. Disable for strict r87 half-durability payment.").define("superArtsRespectUnbreakable",true);
+        FRIENDLY_TARGETS=builder.comment("怀旧右键范围攻击/剑技是否选中友好生物。仍保护已驯服宠物、盟友、乘骑对象；主动攻击你的生物仍可反击。",
+                "Allow friendly targets in legacy area attacks and arts. Independent of Resharped friendlyEnable; PvP remains separate.").define("attackFriendlyEntities",false);
+        SOUL_FEEDING=builder.comment("允许在刀挂台上直接砸普通耀魂增加耀魂值。潜行左键优先喂入；普通左键优先保留点火、抽奖、SB和SE操作。",
+                "Consume one plain soul per feed, even in creative; tiny/fragment/ingot/sphere/crystal/trapezohedron grant 100/200/400/400/500/500 souls.").define("enableDirectSoulFeeding",true);
         SPEC = builder.build();
     }
     /** Item/search callbacks also run between worlds, after SERVER config has been unloaded. */
@@ -84,10 +93,12 @@ public final class LegacyCompat {
         NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, LegacySheathingRepair::timeout);
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, LegacyTaunt::experience);
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST, SummonedBladeMode::interact);
+        NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST, LegacySoulFeeding::sneaking);
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST, SummonedBladeMode::attackStand);
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, LegacyBladeSouls::stand);
         NeoForge.EVENT_BUS.addListener(LegacyBladeSouls::tick);
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, LegacyEnchantments::stand);
+        NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, LegacySoulFeeding::fallback);
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, SummonedBladeMode::input);
         NeoForge.EVENT_BUS.addListener(SummonedBladeMode::tooltip);
     }

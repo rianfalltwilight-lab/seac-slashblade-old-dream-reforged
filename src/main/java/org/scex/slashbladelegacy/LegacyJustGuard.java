@@ -88,12 +88,15 @@ public final class LegacyJustGuard {
             serverPlayer.connection.send(new net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket(player));
         }
         if (age >= 5) {
+            // Retire before effect callbacks, which may re-enter combat or begin another guard.
+            WINDOWS.remove(player, window);
             // The original only restores when there was a nonempty snapshot.
             if (!window.effects.isEmpty()) {
-                player.removeAllEffects();
+                // removeAllEffects iterates the live map across mod callbacks. Those callbacks
+                // can add/remove effects; use bounded snapshot removals and keep public events.
+                for (var effect : List.copyOf(player.getActiveEffectsMap().keySet())) player.removeEffect(effect);
                 window.effects.forEach(effect -> player.addEffect(new MobEffectInstance(effect)));
             }
-            WINDOWS.remove(player);
         }
     }
     public static void clear(Player player) { WINDOWS.remove(player); }

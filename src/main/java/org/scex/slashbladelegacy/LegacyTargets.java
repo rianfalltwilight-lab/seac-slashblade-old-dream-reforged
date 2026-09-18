@@ -32,7 +32,7 @@ public final class LegacyTargets {
         if (living instanceof OwnableEntity ownable && ownable.getOwnerUUID() != null) return false;
         if (living instanceof Enemy || HostileTargeting.isAdditionalHostile(living)) return true;
         if (living instanceof Mob mob && (mob.getTarget() == player || mob.getLastHurtByMob() == player)) return true;
-        if (SlashBladeConfig.FRIENDLY_ENABLE.get()) return true;
+        if (LegacyCompat.isEnabled(LegacyCompat.FRIENDLY_TARGETS)) return true;
         // 1.7.10 accepted other living entities by default. IMob was an override, not a requirement.
         return defaultAttackable(living);
     }

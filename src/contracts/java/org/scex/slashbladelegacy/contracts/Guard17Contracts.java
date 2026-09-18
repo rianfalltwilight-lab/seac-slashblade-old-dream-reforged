@@ -49,7 +49,19 @@ final class Guard17Contracts {
             float counter=before-enemy.getHealth();before=enemy.getHealth();
             LegacyJustGuard.tick(player);check(enemy.getHealth()==before,"duplicate guard tick hit");
             player.addEffect(new MobEffectInstance(MobEffects.POISON,100,0));
-            for(int i=0;i<4;i++){player.setDeltaMovement(1,-2,3);advance(player,1);LegacyJustGuard.tick(player);check(player.getY()==160.5 && player.getDeltaMovement().equals(Vec3.ZERO),"five-tick height freeze");}
+            var mutated=new java.util.concurrent.atomic.AtomicBoolean();
+            java.util.function.Consumer<net.neoforged.neoforge.event.entity.living.MobEffectEvent.Remove> modify=e->{
+                if(e.getEntity()==player && mutated.compareAndSet(false,true)) {
+                    player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED,80,0));
+                    LegacyJustGuard.tick(player); // Combat callback must not replay the retired guard.
+                }
+            };
+            net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(modify);
+            try {
+                for(int i=0;i<4;i++){player.setDeltaMovement(1,-2,3);advance(player,1);LegacyJustGuard.tick(player);check(player.getY()==160.5 && player.getDeltaMovement().equals(Vec3.ZERO),"five-tick height freeze");}
+                check(mutated.get() && player.hasEffect(MobEffects.MOVEMENT_SPEED),"effect-removal callback can mutate the map without CME or unbounded clearing");
+                report.put("guard_effect_callback_regression",true);
+            } finally { net.neoforged.neoforge.common.NeoForge.EVENT_BUS.unregister(modify); }
             check(player.getEffect(MobEffects.DAMAGE_BOOST).getDuration()==100 && !player.hasEffect(MobEffects.POISON),"guard potion snapshot restore");
             advance(player,1);player.setDeltaMovement(1,2,3);LegacyJustGuard.tick(player);check(player.getDeltaMovement().y==2,"freeze ended");
             reset(player,enemy);InputClock.use(player,blade);advance(player,7);hp=player.getHealth();

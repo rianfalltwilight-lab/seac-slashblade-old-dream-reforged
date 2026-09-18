@@ -57,7 +57,13 @@ final class Super17Contracts {
             blade=prepare(p,LegacyArts.Art.DIMENSION);blade.set(DataComponents.UNBREAKABLE,new Unbreakable(true));input(p,true,0);input(p,false,20);
             input(p,false,20);check("duplicate release cannot launch twice",managers(p).size()==1);
             var active=managers(p);if(!active.isEmpty())for(int i=0;i<30;i++)active.getFirst().tick();
-            check("finish sets half durability even Unbreakable",blade.getDamageValue()==blade.getMaxDamage()/2 && managers(p).isEmpty());
+            check("default respects Unbreakable",blade.getDamageValue()==0 && managers(p).isEmpty());
+            LegacyCompat.SUPER_RESPECT_UNBREAKABLE.set(false);
+            try {
+                blade=prepare(p,LegacyArts.Art.DIMENSION);blade.set(DataComponents.UNBREAKABLE,new Unbreakable(true));input(p,true,0);input(p,false,20);
+                active=managers(p);if(!active.isEmpty())for(int i=0;i<30;i++)active.getFirst().tick();
+                check("strict option sets half durability even Unbreakable",blade.getDamageValue()==blade.getMaxDamage()/2 && managers(p).isEmpty());
+            } finally {LegacyCompat.SUPER_RESPECT_UNBREAKABLE.set(true);}
             blade=prepare(p,LegacyArts.Art.DIMENSION);input(p,true,0);input(p,false,20);
             active=managers(p);p.getInventory().setItem(1,blade);p.setItemInHand(InteractionHand.MAIN_HAND,new ItemStack(Items.STICK));
             if(!active.isEmpty())for(int i=0;i<30;i++)active.getFirst().tick();

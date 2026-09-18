@@ -207,7 +207,9 @@ public final class LegacyArts {
     public static void finishSuper(Player player,ItemStack blade) {
         if(LegacyDamage.holding(player,blade))recovery(player,Art.DIMENSION);
         else {BladeStateAccess.of(blade).ifPresent(state->state.setComboSeq(combo(Art.DIMENSION,SlashArts.ArtsType.Super,true)));player.swing(InteractionHand.MAIN_HAND);}
-        blade.setDamageValue(blade.getMaxDamage()/2);
+        if (!LegacyCompat.isEnabled(LegacyCompat.SUPER_RESPECT_UNBREAKABLE)
+                || !blade.has(net.minecraft.core.component.DataComponents.UNBREAKABLE))
+            blade.setDamageValue(blade.getMaxDamage()/2);
     }
     public static void syncMotion(Player player){player.hurtMarked=true;if(player instanceof ServerPlayer server)server.connection.send(new net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket(player));}
     public static void sound(Player player,SoundEvent sound,float volume,float pitch){player.level().playSound(null,player.blockPosition(),sound,SoundSource.PLAYERS,volume,pitch);}

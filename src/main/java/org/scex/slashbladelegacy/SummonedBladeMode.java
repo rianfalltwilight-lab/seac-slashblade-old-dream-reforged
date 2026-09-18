@@ -80,6 +80,7 @@ public final class SummonedBladeMode {
         if (enabled(event.getItemStack())) event.getToolTip().add(Component.translatable("slashblade_legacy_compat.sb.blade"));
     }
     public static void attackStand(mods.flammpfeil.slashblade.event.SlashBladeEvent.BladeStandAttackEvent event) {
+        if(event.isCanceled())return;
         if(!org.scex.slashbladelegacy.LegacyMode.enabled(event.getDamageSource().getEntity(),LegacyCompat.SUMMONED_BLADE) || !(event.getDamageSource().getEntity() instanceof ServerPlayer player)
                 || event.getDamageSource().getDirectEntity()!=player)return;
         // Resharpened's soul-on-stand operations are LEFT-click attacks, not EntityInteract.
