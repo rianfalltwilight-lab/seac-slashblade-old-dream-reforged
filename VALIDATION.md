@@ -1,3 +1,5 @@
+当前 dev.4 验证见 [更新说明](docs/releases/0.3.0-dev.4.md)。以下为历史记录。
+
 当前 0.3.0-dev.3 验证见 [更新说明](docs/releases/0.3.0-dev.3.md)。以下是历史记录。
 
 当前 0.3.0-dev.2 验证见 [更新说明](docs/releases/0.3.0-dev.2.md)。以下是历史记录。

@@ -34,7 +34,6 @@ public final class LegacyMode {
     private static final ThreadLocal<Boolean> CONTEXT=new ThreadLocal<>();
     private static final Map<UUID,Boolean> CLIENT=new HashMap<>(); // client main thread only
     private static final Map<ServerPlayer,Boolean> PENDING=new WeakHashMap<>();
-    private static final Map<ServerPlayer,Long> REQUESTED=new WeakHashMap<>();
     private static final Map<UUID,Set<Entity>> OWNED=new HashMap<>();
     private static final Set<Entity> UNCLAIMED=Collections.newSetFromMap(new IdentityHashMap<>());
     private static final EnumSet<InputCommand> HELD=EnumSet.of(InputCommand.M_DOWN,InputCommand.R_DOWN,InputCommand.L_DOWN,InputCommand.SPRINT);
@@ -87,21 +86,21 @@ public final class LegacyMode {
     public static void clearClient(){CLIENT.clear();}
     public static boolean pending(ServerPlayer player){return PENDING.containsKey(player);}
     public static void request(ServerPlayer player){
-        long tick=player.server.overworld().getGameTime();
-        Long last=REQUESTED.get(player);if(last!=null && tick-last>=0 && tick-last<10)return;
-        REQUESTED.put(player,tick);
         if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT)){message(player,"disabled");return;}
         if(PENDING.remove(player)!=null){message(player,"cancelled");return;}
         PENDING.put(player,!modern(player));
         if(!finish(player))message(player,"waiting");
     }
-    public static boolean ready(ServerPlayer player){
+    private static boolean canSettle(ServerPlayer player){
         if(!player.isAlive() || !player.onGround() || player.isUsingItem() || player.swinging || player.containerMenu!=player.inventoryMenu)return false;
         var input=player.getData(CapabilityInputState.INPUT_STATE);
         if(input.getCommands().stream().anyMatch(HELD::contains))return false;
         var data=player.getPersistentData();long now=player.level().getGameTime();
-        if(data.getInt("sb.avoid.counter")>0 || data.getInt("sb.avoid.trickup")>0 || data.getInt("sb.airtrick.counter")>0
-                || data.contains("SB.AvoidTimeout") && now<=data.getLong("SB.AvoidTimeout")+1)return false;
+        return !(data.getInt("sb.avoid.counter")>0 || data.getInt("sb.avoid.trickup")>0 || data.getInt("sb.airtrick.counter")>0
+                || data.contains("SB.AvoidTimeout") && now<=data.getLong("SB.AvoidTimeout")+1);
+    }
+    public static boolean ready(ServerPlayer player){
+        if(!canSettle(player) || player.swinging)return false;
         for(var blade:List.of(player.getMainHandItem(),player.getOffhandItem())){
             var state=BladeStateAccess.of(blade).orElse(null);
             if(state!=null){var combo=state.peekCurrentComboStateTicks(player).getValue();if(!combo.equals(ComboStateRegistry.NONE.getId()) && !combo.equals(ComboStateRegistry.STANDBY.getId()))return false;}
@@ -116,7 +115,21 @@ public final class LegacyMode {
         return namespace.equals("slashblade") || namespace.equals(LegacyCompat.MOD_ID);
     }
     private static boolean dormant(Entity entity){return knownAction(entity) && entity.level() instanceof net.minecraft.server.level.ServerLevel level && !level.isPositionEntityTicking(entity.blockPosition());}
-    private static boolean blocks(Entity entity,Player player){return !entity.isRemoved() && owner(entity)==player && !dormant(entity);}
+    private static boolean expired(Entity entity){
+        // A projectile can stop ticking when its chunk leaves the entity-ticking range. In
+        // that state its normal final discard never runs, so do the same bounded expiry check
+        // while evaluating a pending mode change. The one-tick margin matches the next normal
+        // tick and avoids preserving an entity that is already at its terminal lifetime.
+        if(entity instanceof LegacyPhantomSword sword)return sword.age()+1>=Math.max(1,sword.lifetime());
+        if(entity instanceof LegacyArtEntity art)return art.age()+1>=Math.max(1,art.lifetime());
+        if(entity instanceof LegacyDrive drive)return drive.age()+1>=Math.max(1,drive.getLifetime());
+        return false;
+    }
+    private static boolean blocks(Entity entity,Player player){
+        if(entity.isRemoved() || owner(entity)!=player)return false;
+        if(expired(entity)){entity.discard();return false;}
+        return !dormant(entity);
+    }
     private static void retireDormant(ServerPlayer player){
         var actions=new HashSet<Entity>(UNCLAIMED);var owned=OWNED.get(player.getUUID());if(owned!=null)actions.addAll(owned);
         for(var entity:actions)if(!entity.isRemoved() && owner(entity)==player && dormant(entity))entity.discard();
@@ -124,9 +137,16 @@ public final class LegacyMode {
     private static void message(ServerPlayer player,String key){player.displayClientMessage(Component.translatable("slashblade_legacy_compat.mode."+key),true);}
     public static boolean finish(ServerPlayer player){
         if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT)){if(PENDING.remove(player)!=null)message(player,"disabled");return false;}
-        Boolean next=PENDING.get(player);if(next==null || !ready(player))return false;
+        Boolean next=PENDING.get(player);if(next==null || !canSettle(player))return false;
         // Let a completed sheathing settle once under its original rules before changing the mode.
-        if(legacy(player)){BladeStateAccess.of(player.getMainHandItem()).ifPresent(s->s.resolvCurrentComboState(player));LegacySheathingRepair.tick(player);}
+        if(legacy(player) && canSettle(player)){
+            // Offhand blades do not receive the selected-mainhand inventory tick. Resolve both
+            // states here when their timeout has elapsed, so an expired offhand combo cannot hold
+            // the request forever without ending an active attack early.
+            for(var blade:List.of(player.getMainHandItem(),player.getOffhandItem()))
+                BladeStateAccess.of(blade).filter(s->timedOut(s,player)).ifPresent(s->s.resolvCurrentComboState(player));
+            LegacySheathingRepair.tick(player);
+        }
         // Addons can start another action from a sheathing callback. Keep the request queued in that case.
         if(!ready(player))return false;
         PENDING.remove(player);
@@ -141,6 +161,12 @@ public final class LegacyMode {
         var rank=player.getData(CapabilityConcentrationRank.RANK_POINT);
         PacketDistributor.sendToPlayer(player,new mods.flammpfeil.slashblade.network.RankSyncMessage(rank.getRankPoint(player.level().getGameTime())));
         message(player,next?"modern":"legacy");return true;
+    }
+    private static boolean timedOut(mods.flammpfeil.slashblade.capability.slashblade.ISlashBladeState state,ServerPlayer player){
+        var id=state.getComboSeq();
+        if(id.equals(ComboStateRegistry.NONE.getId()) || id.equals(ComboStateRegistry.STANDBY.getId()))return false;
+        var combo=ComboStateRegistry.REGISTRY.get(id);
+        return combo!=null && state.getElapsedTime(player)*50L>=combo.getTimeoutMS();
     }
     private static void clearTransient(Player player){
         LegacyRangeAttack.clear(player);LegacySuperArts.clear(player);LegacyJustGuard.clear(player);LegacyCombat.clear(player);LegacySheathingRepair.clear(player);LegacyInputBudget.clear(player);SummonedBladeMode.clear(player);
@@ -184,11 +210,11 @@ public final class LegacyMode {
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST,(PlayerEvent.PlayerLoggedInEvent e)->{
             if(e.getEntity() instanceof ServerPlayer p){bindInventory(p);sync(p);for(var other:p.server.getPlayerList().getPlayers())if(other!=p)PacketDistributor.sendToPlayer(p,new LegacyModePayload.State(other.getUUID(),modern(other)));}
         });
-        NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST,(PlayerEvent.Clone e)->{e.getEntity().getPersistentData().putBoolean(MODERN,modern(e.getOriginal()));e.getEntity().getPersistentData().putLong(EPOCH,e.getOriginal().getPersistentData().getLong(EPOCH));PENDING.remove(e.getOriginal());REQUESTED.remove(e.getOriginal());clearTransient(e.getOriginal());});
+        NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST,(PlayerEvent.Clone e)->{e.getEntity().getPersistentData().putBoolean(MODERN,modern(e.getOriginal()));e.getEntity().getPersistentData().putLong(EPOCH,e.getOriginal().getPersistentData().getLong(EPOCH));PENDING.remove(e.getOriginal());clearTransient(e.getOriginal());});
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST,(PlayerEvent.PlayerRespawnEvent e)->{if(e.getEntity() instanceof ServerPlayer p){clearTransient(p);bindInventory(p);sync(p);}});
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST,(PlayerEvent.PlayerChangedDimensionEvent e)->{if(e.getEntity() instanceof ServerPlayer p){PENDING.remove(p);clearTransient(p);bindInventory(p);sync(p);}});
         NeoForge.EVENT_BUS.addListener((PlayerEvent.StartTracking e)->{if(e.getEntity() instanceof ServerPlayer p && e.getTarget() instanceof Player other)PacketDistributor.sendToPlayer(p,new LegacyModePayload.State(other.getUUID(),modern(other)));});
-        NeoForge.EVENT_BUS.addListener((PlayerEvent.PlayerLoggedOutEvent e)->{PENDING.remove(e.getEntity());REQUESTED.remove(e.getEntity());clearTransient(e.getEntity());});
+        NeoForge.EVENT_BUS.addListener((PlayerEvent.PlayerLoggedOutEvent e)->{PENDING.remove(e.getEntity());clearTransient(e.getEntity());});
         NeoForge.EVENT_BUS.addListener((EntityJoinLevelEvent e)->{if(!e.getLevel().isClientSide && e.getEntity() instanceof IShootable && !track(e.getEntity()))e.setCanceled(true);});
         NeoForge.EVENT_BUS.addListener((EntityLeaveLevelEvent e)->{
             if(e.getLevel().isClientSide || !(e.getEntity() instanceof IShootable))return;var entity=e.getEntity();UNCLAIMED.remove(entity);
@@ -200,6 +226,6 @@ public final class LegacyMode {
             }
         });
         NeoForge.EVENT_BUS.addListener((LevelEvent.Unload e)->{if(!e.getLevel().isClientSide()){UNCLAIMED.removeIf(x->x.level()==e.getLevel());OWNED.values().forEach(s->s.removeIf(x->x.level()==e.getLevel()));OWNED.values().removeIf(Set::isEmpty);}});
-        NeoForge.EVENT_BUS.addListener((ServerStoppedEvent e)->{PENDING.clear();REQUESTED.clear();OWNED.clear();UNCLAIMED.clear();});
+        NeoForge.EVENT_BUS.addListener((ServerStoppedEvent e)->{PENDING.clear();OWNED.clear();UNCLAIMED.clear();});
     }
 }

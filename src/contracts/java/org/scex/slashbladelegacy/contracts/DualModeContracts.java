@@ -85,14 +85,17 @@ final class DualModeContracts {
             var active=new EntityAbstractSummonedSword(RegistryEvents.SummonedSword,b.level());active.setOwner(b);active.setPos(b.position());b.level().addFreshEntity(active);
             var dormant=new net.minecraft.nbt.CompoundTag();active.save(dormant);
             advance(b,12);LegacyMode.request(b);check(LegacyMode.pending(b) && LegacyMode.modern(b),"live modern sword defers switch");
-            advance(b,12);LegacyMode.request(b);check(!LegacyMode.pending(b) && LegacyMode.modern(b),"second accepted key cancels pending switch");
+            advance(b,1);LegacyMode.request(b);check(!LegacyMode.pending(b) && LegacyMode.modern(b),"second key cancels immediately without debounce loss");
             advance(b,12);LegacyMode.request(b);check(LegacyMode.pending(b),"request queued again");
             active.discard();check(LegacyMode.finish(b) && LegacyMode.legacy(b),"last active sword ending releases switch");discard();
             var reloaded=net.minecraft.world.entity.EntityType.loadEntityRecursive(dormant,b.level(),e->e);
             check(reloaded!=null && !b.level().addFreshEntity(reloaded),"projectile saved in previous mode cannot resume after a switch");
             advance(b,12);b.startUsingItem(InteractionHand.MAIN_HAND);LegacyMode.request(b);
             check(LegacyMode.pending(b) && !LegacyMode.ready(b),"held use blocks transition");b.stopUsingItem();b.swinging=false;
+            var offhand=blade(server);var offhandState=BladeStateAccess.of(offhand).orElseThrow();
+            b.setItemInHand(InteractionHand.OFF_HAND,offhand);LegacyMode.bindInventory(b);
             state.setComboSeq(LegacyCombat.id(LegacyMove.SAYA1));state.setLastActionTime(b.level().getGameTime());
+            offhandState.setComboSeq(LegacyCombat.id(LegacyMove.SAYA1));offhandState.setLastActionTime(b.level().getGameTime());
             check(!LegacyMode.ready(b),"unfinished combo blocks transition");advance(b,70);
             var oldJob=new AtomicInteger();var addonJob=new AtomicInteger();var scheduler=b.getData(CapabilityInputState.INPUT_STATE).getScheduler();long time=b.level().getGameTime();
             scheduler.schedule("scex_legacy_range",time+1,(e,q,t)->oldJob.incrementAndGet());scheduler.schedule("test_foreign_job",time+1,(e,q,t)->addonJob.incrementAndGet());
