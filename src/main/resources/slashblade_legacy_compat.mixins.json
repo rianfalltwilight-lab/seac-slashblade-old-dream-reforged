@@ -5,6 +5,8 @@
   "plugin": "org.scex.slashbladelegacy.mixin.LegacyMixinPlugin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "LegacyServerCarryTypeMixin",
+    "LegacyBladeStateConstructorMixin",
     "BoundedTimelineMixin",
     "LegacyItemModeMixin",
     "LegacySchedulerAccessor",
@@ -17,6 +19,15 @@
     "LegacyArtsMixin",
     "LegacySuperArtsMixin",
     "LegacyAvoidMixin",
+    "LegacyLockOnMixin",
+    "LegacyNamedBladeStackAccessor",
+    "LegacyNamedBladeArtMixin",
+    "LegacyBurstDriveMixin",
+    "LegacyFoxSpearMotionMixin",
+    "LegacyGaleTimingMixin",
+    "LegacyLightningTimingMixin",
+    "LegacyAddonSwordDelayMixin",
+    "LegacyWaterDriveMixin",
     "LegacyArtReleaseMixin",
     "LegacyGuardMixin",
     "LegacyEnchantmentsMixin",
@@ -49,6 +60,8 @@
     "LegacyLandingMixin"
   ],
   "client": [
+    "LegacyBladeMotionApiMixin",
+    "LegacyObjVertexMixin",
     "LegacyFirstPersonMixin",
     "LegacyBladePoseMixin",
     "LegacyBodyMotionMixin"

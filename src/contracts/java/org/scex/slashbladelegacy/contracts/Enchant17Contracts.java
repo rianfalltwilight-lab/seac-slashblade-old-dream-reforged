@@ -72,11 +72,15 @@ final class Enchant17Contracts {
             try{player.attack(stand);}finally{NeoForge.EVENT_BUS.unregister(seedStand);NeoForge.EVENT_BUS.unregister(observe);NeoForge.EVENT_BUS.unregister(afterStand);}
             blade=stand.getItem();rows.add(Map.of("ingot_count",soul.getCount(),"ingot_power",blade.getEnchantmentLevel(power),"stand_seed",standSeed,"stand_calls",standCalls[0],"stand_fire",stand.isOnFire(),"stand_removed",stand.isRemoved(),"attack_damage",player.getAttributeValue(Attributes.ATTACK_DAMAGE),"held_same",player.getMainHandItem()==soul));
             check(soul.getCount()==1 && blade.getEnchantmentLevel(power)==3 && blade.getEnchantmentLevel(punch)==1,"ingot shares one player roll across enchants despite rejecting native world roll");
-            // A separately posted foreign event must still receive the installed upstream probability check.
+            // Preserve the installed upstream rule for events outside our own roll.
             var foreignOriginal=new mods.flammpfeil.slashblade.event.SlashBladeEvent.BladeStandAttackEvent(blade,BladeStateAccess.of(blade).orElseThrow(),stand,player.damageSources().playerAttack(player));
             var foreign=new ProudSoulEnchantmentEvent(blade,BladeStateAccess.of(blade).orElseThrow(),power,4,true,.75f,1,foreignOriginal);
             level.getRandom().setSeed(rejectedWorldSeed);NeoForge.EVENT_BUS.post(foreign);
-            check(foreign.isCanceled() && !LegacyEnchantments.ownsSoulRoll(foreign),"native probability remains active outside exact legacy event scope");
+            boolean nativeProbabilityCheck=Arrays.stream(mods.flammpfeil.slashblade.event.bladestand.BlandStandEventHandler.class.getDeclaredMethods())
+                    .anyMatch(method->method.getName().equals("proudSoulEnchantmentProbabilityCheck")
+                            && Arrays.equals(method.getParameterTypes(),new Class<?>[]{ProudSoulEnchantmentEvent.class}));
+            check(foreign.isCanceled()==nativeProbabilityCheck && !LegacyEnchantments.ownsSoulRoll(foreign),"foreign event preserves the installed native probability rule");
+            rows.add(Map.of("native_probability_callback_present",nativeProbabilityCheck,"foreign_event_canceled",foreign.isCanceled()));
             Consumer<ProudSoulEnchantmentEvent> cancel=e->{if(e.getOriginalEvent().getBladeStand()==stand)e.setCanceled(true);};
             var snapshot=blade.copy();NeoForge.EVENT_BUS.addListener(cancel);
             try{player.attack(stand);check(soul.getCount()==1 && ItemStack.isSameItemSameComponents(blade,snapshot),"protection cancellation leaves blade/material unchanged");}

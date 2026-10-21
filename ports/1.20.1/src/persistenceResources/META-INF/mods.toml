@@ -1,0 +1,7 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+[[mods]]
+modId="slashblade_legacy_persistence_probe"
+version="0.3.0-dev.9"
+displayName="SlashBlade landing persistence probe (test only)"

@@ -57,6 +57,9 @@ final class DualWieldContracts {
                 check(main.getDamageValue()-mw==(!borrowed && !expected.scabbard?1:0),"main wear "+expected);
                 check(off.getDamageValue()-ow==(borrowed?1:0),"idle offhand explicit wear "+expected);
                 check(player.getMainHandItem()==main && player.getOffhandItem()==off && !state.onClick() && !offState.onClick(),"hand and callback restoration "+expected);
+                check(java.util.stream.IntStream.range(0,player.getInventory().getContainerSize())
+                        .mapToObj(player.getInventory()::getItem).filter(s->s.getItem() instanceof mods.flammpfeil.slashblade.item.ItemSlashBlade)
+                        .mapToInt(ItemStack::getCount).sum()==2,"two inventory blades conserved after "+expected);
                 check(target.getDeltaMovement().y==0,"grounded dual hit does not lift "+expected);
                 rows.add(Map.of("move",expected.name(),"damage",hp-target.getHealth(),"main_wear",main.getDamageValue()-mw,"off_wear",off.getDamageValue()-ow));
             }

@@ -13,7 +13,16 @@ public final class LegacyDurability {
     /** Energy-backed items must break at zero EU; the last ordinary durability point is not free EU. */
     public static final net.minecraft.tags.TagKey<Item> FRAMEWORK_BOUNDARY=net.minecraft.tags.TagKey.create(
             net.minecraft.core.registries.Registries.ITEM,net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(LegacyCompat.MOD_ID,"framework_durability_boundary"));
+    private static final net.minecraft.resources.ResourceKey<Enchantment> INDESTRUCTIBLE=net.minecraft.resources.ResourceKey.create(
+            net.minecraft.core.registries.Registries.ENCHANTMENT,net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("indestructible","indestructible"));
     private LegacyDurability() {}
+    /** The fixed Super cost does not use the random wear path.
+     * The Unbreakable component and the optional Indestructible enchantment protect the blade, as on 1.20.1. */
+    public static boolean protectsFixedCost(ItemStack blade,net.minecraft.core.HolderLookup.Provider registries) {
+        if(blade.has(net.minecraft.core.component.DataComponents.UNBREAKABLE))return true;
+        var enchantment=registries.lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).get(INDESTRUCTIBLE);
+        return enchantment.isPresent() && blade.getEnchantmentLevel(enchantment.get())>0;
+    }
     public static void hurt(ItemStack blade,int amount,ServerLevel level,LivingEntity user,Consumer<Item> onBreak) {
         if(!blade.isDamageableItem() || user!=null && user.hasInfiniteMaterials() || amount<=0)return;
         int unbreaking=blade.getEnchantmentLevel(level.registryAccess().holderOrThrow(Enchantments.UNBREAKING));

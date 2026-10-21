@@ -1,4 +1,9 @@
 {
+  "slash_art.slashblade_legacy_compat.prayer": "Prayer",
+  "slash_art.slashblade_legacy_compat.terra_swords": "Terra Swords",
+  "se.slashblade_legacy_compat.mana_burst": "Mana Burst",
+  "se.slashblade_legacy_compat.mana_pool_repair": "Mana Pool Repair",
+  "tooltip.slashblade_legacy_compat.rank_damage": "Rank Attack Damage",
   "adv.slashblade_legacy_compat.first_attack": "Attack a living entity with an undamaged wooden sword.",
   "key.slashblade_legacy_compat.lock_on": "Lock-on",
   "slashblade_legacy_compat.blade_soul": "%s soul",
@@ -13,6 +18,7 @@
   "slash_art.slashblade_legacy_compat.wither_swords": "BlisteringWitherSwords",
   "slash_art.slashblade_legacy_compat.sakura_end": "SakuraEnd",
   "slash_art.slashblade_legacy_compat.maximum_bet": "MaximumBet",
+  "slash_art.slashblade_legacy_compat.slash_dimension_spiral": "Slash Dimension S",
   "key.slashblade_legacy_compat.toggle_mode": "Toggle Legacy / Resharpened Mode",
   "slashblade_legacy_compat.mode.fallback_sa": "Resharpened uses Judgement Cut here; the original legacy-only SA is preserved",
   "slashblade_legacy_compat.mode.waiting": "Waiting for sheathing and active arts; press again to cancel",

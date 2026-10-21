@@ -146,7 +146,7 @@ final class RegressionContracts {
             require(LegacyBladePose.handlesCarry("PSO2",LegacyMove.SAYA1) && !LegacyBladePose.handlesCarry("PSO2",LegacyMove.NONE),"PSO2 swing/standby routing");
             for(boolean enabled:new boolean[]{false,true}) {
                 LegacyCompat.LEGACY_RANK.set(enabled);rank.setRawRankPoint(0);rank.setLastUpdte(level.getGameTime());
-                for(var move:LegacyMove.values())player.getPersistentData().remove("slashblade_legacy_compat.rank_cd."+move.name());
+                org.scex.slashbladelegacy.LegacyRank.clearCooldowns(player);
                 state.setComboSeq(ComboStateRegistry.NONE.getId());state.setLastActionTime(level.getGameTime());
                 for(int click=0;click<3;click++) {
                     InputClock.use(player,blade);player.stopUsingItem();

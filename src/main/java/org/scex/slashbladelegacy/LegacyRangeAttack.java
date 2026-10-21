@@ -10,6 +10,7 @@ import mods.flammpfeil.slashblade.event.handler.InputCommandEvent;
 import mods.flammpfeil.slashblade.item.SwordType;
 import mods.flammpfeil.slashblade.util.InputCommand;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -18,7 +19,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.enchantment.Enchantments;
 
-/** r87 InitProxyClient / ItemSlashBlade.doRangeAttack over the existing server input channel. */
+/** 使用现有服务端输入通道执行 r87 远程剑技。 */
 public final class LegacyRangeAttack {
     private LegacyRangeAttack() {}
     public enum Art { SINGLE, SPIRAL, STORM, BLISTERING, HEAVY_RAIN }
@@ -52,7 +53,7 @@ public final class LegacyRangeAttack {
         }
         if(!before || after)return;
         var press=PRESSES.remove(player);
-        // A release also follows charged arts in r87 (except releasing the held blistering volley).
+        // r87 蓄力剑技后仍处理松键。急袭幻影剑在 perform 中处理松键。
         if(press==null || !valid(player,press) || LAST_RELEASE.getOrDefault(player,Long.MIN_VALUE)==now)return;
         LAST_RELEASE.put(player,now);
         perform(player,press.blade(),Art.SINGLE);
@@ -78,12 +79,16 @@ public final class LegacyRangeAttack {
     }
     public static ItemStack sourceBlade(Player owner,UUID source) {
         if(source==null)return ItemStack.EMPTY;
+        // 只匹配来源 UUID。不复制候选刀的其他自定义数据。
+        var query=new CompoundTag();query.putUUID(SummonedBladeMode.SOURCE,source);
         ItemStack result=ItemStack.EMPTY;
         for(int i=0;i<owner.getInventory().getContainerSize();i++) {
             var candidate=owner.getInventory().getItem(i);
-            if(candidate.isEmpty() || BladeStateAccess.of(candidate).isEmpty())continue;
-            var tag=candidate.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag();
-            if(tag.hasUUID(SummonedBladeMode.SOURCE) && source.equals(tag.getUUID(SummonedBladeMode.SOURCE))) {
+            // Only SlashBlade items have blade state. Test the item type before the NBT comparison.
+            if(candidate.isEmpty() || !(candidate.getItem() instanceof mods.flammpfeil.slashblade.item.ItemSlashBlade)
+                    || !candidate.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).matchedBy(query))continue;
+            if(BladeStateAccess.of(candidate).isPresent()) {
+                // 两把刀使用同一 UUID 时，拒绝选择来源。
                 if(!result.isEmpty())return ItemStack.EMPTY;
                 result=candidate;
             }

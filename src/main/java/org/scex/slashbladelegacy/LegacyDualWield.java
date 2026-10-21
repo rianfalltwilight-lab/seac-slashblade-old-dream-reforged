@@ -14,8 +14,8 @@ import mods.flammpfeil.slashblade.event.SlashBladeEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import static org.scex.slashbladelegacy.LegacyMove.*;
 
-/** Opt-in by equipment: 1.12.2 ForceEdge on top of the r87 single-blade rules.
- * Force1/2/6 and Stinger borrow the offhand for the attack, then notify the controlling blade. */
+/** 双手持刀时使用 1.12.2 ForceEdge 连段。
+ * Force1/2/6 和 Stinger 先用副手攻击，再通知主手刀。 */
 public final class LegacyDualWield {
     private static final ThreadLocal<Strike> STRIKE=new ThreadLocal<>();
     private static final class Strike {
@@ -34,8 +34,9 @@ public final class LegacyDualWield {
     }
 
     public static boolean active(LivingEntity user) {
-        return org.scex.slashbladelegacy.LegacyMode.legacy(user) && hasOffhandBlade(user) && !user.getMainHandItem()
-                .getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag().getBoolean("isThrownOffhand");
+        if(!LegacyMode.legacy(user) || !hasOffhandBlade(user))return false;
+        var data=user.getMainHandItem().getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY);
+        return !data.contains("isThrownOffhand") || !data.copyTag().getBoolean("isThrownOffhand");
     }
 
     public static LegacyMove next(LegacyMove current) {
@@ -49,7 +50,7 @@ public final class LegacyDualWield {
         };
     }
 
-    /** ItemSlashBlade.ComboSequence.mainHandCombo; null means only the main blade moves. */
+    /** 对应 ItemSlashBlade.ComboSequence.mainHandCombo。null 表示仅主手刀运动。 */
     public static LegacyMove mainHandPose(LegacyMove move) {
         return switch(move) {
             case FORCE1,FORCE2,STINGER -> NONE;
@@ -66,8 +67,7 @@ public final class LegacyDualWield {
         var offState=BladeStateAccess.of(strike.off).orElseThrow();
         boolean mainClick=mainState.onClick(),offClick=offState.onClick();
         STRIKE.set(strike);mainState.setOnClick(true);offState.setOnClick(true);
-        // Move the two actual stacks, never alias one stack into both hands. All external callbacks
-        // observe the striking blade in MAIN_HAND, including enchantments, protection and SE.
+        // 交换两个实际物品栈。外部回调通过主手取得攻击刀。
         player.setItemInHand(InteractionHand.MAIN_HAND,strike.off);
         player.setItemInHand(InteractionHand.OFF_HAND,strike.main);
         try {
@@ -78,8 +78,7 @@ public final class LegacyDualWield {
                 if(strike.offAccepted)LegacyAdditionalAttack.wear(strike.off,1,player);
                 var parent=target instanceof net.neoforged.neoforge.entity.PartEntity<?> part?part.getParent():target;
                 if(intact(strike) && parent instanceof LivingEntity living)strike.main.hurtEnemy(living,player);
-                // Old attackTargetEntity also calls the controlling blade's hitEntity. Both
-                // blades receive kill bookkeeping, but damage/loot is still emitted only once.
+                // 旧版也调用主手刀的 hitEntity。两刀记录击杀，伤害和掉落只结算一次。
                 if(wasAlive && parent instanceof LivingEntity living && !living.isAlive() && living.deathTime==0
                         && intact(strike) && strike.mainAccepted) {
                     var kills=new SlashBladeEvent.AddKillCountEvent(strike.main,mainState,1);
@@ -105,7 +104,7 @@ public final class LegacyDualWield {
                 && s.player.getMainHandItem()==s.off && s.player.getOffhandItem()==s.main;
     }
 
-    /** Scope only the borrowed-hand callbacks, retaining the public HitEvent and old wear rule. */
+    /** 只接管临时换手期间的回调。保留公开 HitEvent 和旧版耐久规则。 */
     public static boolean hurtEnemy(ItemStack blade,LivingEntity target,LivingEntity user) {
         var s=STRIKE.get();
         if(s==null || s.player!=user || (s.target!=target
@@ -130,8 +129,8 @@ public final class LegacyDualWield {
             player.setItemInHand(InteractionHand.OFF_HAND,s.off.isEmpty()?ItemStack.EMPTY:s.off);
             return;
         }
-        // An addon replaced a hand during its callback. Keep the replacement and return only
-        // original stacks still in our temporary slots; consumed/moved originals stay consumed/moved.
+        // 附属在回调中替换了手中物品。保留替换结果。
+        // 只归还临时槽位中剩余的原物品栈，不恢复已消耗或已移走的物品。
         if(player.getMainHandItem()==s.off) {
             player.setItemInHand(InteractionHand.MAIN_HAND,ItemStack.EMPTY);returnStack(player,s.off);
         }

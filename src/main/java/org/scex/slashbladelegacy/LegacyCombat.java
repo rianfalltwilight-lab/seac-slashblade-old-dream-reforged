@@ -23,6 +23,8 @@ import static org.scex.slashbladelegacy.LegacyMove.*;
 public final class LegacyCombat {
     public static final DeferredRegister<ComboState> COMBOS=DeferredRegister.create(ComboState.REGISTRY_KEY,LegacyCompat.MOD_ID);
     private static final Map<LegacyMove,DeferredHolder<ComboState,ComboState>> MOVES=new EnumMap<>(LegacyMove.class);
+    /** Reverse index for move(). Renderers and tick handlers call it often. */
+    private static final Map<ResourceLocation,LegacyMove> BY_ID=new HashMap<>();
     private static final String AIR_USED="slashblade_legacy_compat.air_used";
     private static final Map<Player,Motion> MOTIONS=new WeakHashMap<>();
     private static final class Motion {
@@ -41,17 +43,15 @@ public final class LegacyCombat {
     }
     static {
         for(var move:LegacyMove.values()) if(move!=NONE) {
-            MOVES.put(move,COMBOS.register(move.name().toLowerCase(Locale.ROOT),()->build(move)));
+            var holder=COMBOS.register(move.name().toLowerCase(Locale.ROOT),()->build(move));
+            MOVES.put(move,holder);BY_ID.put(holder.getId(),move);
         }
     }
     private LegacyCombat() {}
     public static void resetAirAttack(Player player) {player.getPersistentData().remove(AIR_USED);}
     public static void clear(Player player){MOTIONS.remove(player);resetAirAttack(player);}
     public static ResourceLocation id(LegacyMove move) {return move==NONE?ComboStateRegistry.NONE.getId():MOVES.get(move).getId();}
-    public static LegacyMove move(ResourceLocation id) {
-        for(var entry:MOVES.entrySet())if(entry.getValue().getId().equals(id))return entry.getKey();
-        return NONE;
-    }
+    public static LegacyMove move(ResourceLocation id) {return BY_ID.getOrDefault(id,NONE);}
     private static ComboState build(LegacyMove move) {
         // Registry entries carry input/timeouts only. The 1.7 renderer uses vanilla swing progress.
         int reset=move==NOUTOU?10:move.resetTicks;
@@ -63,10 +63,12 @@ public final class LegacyCombat {
         if(move.aerial())builder.aerial();
         return builder.build();
     }
-    /** Ordinary input uses registered legacy states. Charged foreign arts retain their identity;
-     * the old dimension-slash gesture is their default visual adapter until explicitly mapped. */
+    /** Use registered legacy states for ordinary input.
+     * Keep the identifiers of charged foreign arts unchanged.
+     * Display unmapped foreign arts with the legacy dimension-slash gesture. */
     public static LegacyMove visualMove(ResourceLocation combo) {
         var art=LegacyArts.visual(combo);if(art!=null)return art;
+        var named=LegacyNamedBlades.visual(combo);if(named!=null)return named;
         var legacy=move(combo);
         if(legacy!=NONE || combo.equals(ComboStateRegistry.NONE.getId()) || combo.equals(ComboStateRegistry.STANDBY.getId()))return legacy;
         return switch(combo.toString()) {
@@ -171,8 +173,8 @@ public final class LegacyCombat {
         if(player.getData(CapabilityInputState.INPUT_STATE).getCommands().contains(InputCommand.L_CLICK))return;
         boolean perfectBattou=move==BATTOU && attackingBlade.getDamageValue()==0
                 && SwordType.from(attackingBlade).contains(SwordType.BEWITCHED);
-        // The original mesh trail follows the blade. Keep the public addon hook without spawning
-        // a second, independently timed Resharpened arc over the old animation.
+        // The legacy mesh trail follows the blade.
+        // Keep the public addon hook. Do not add a second Resharpened arc.
         var slash=new SlashBladeEvent.DoSlashEvent(attackingBlade,BladeStateAccess.of(attackingBlade).orElseThrow(),
                 player,slashRoll(move),false,move.scabbard?.44:1,KnockBacks.cancel);
         if(net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(slash).isCanceled())return;
@@ -255,8 +257,8 @@ public final class LegacyCombat {
             }
             case HELM_BRAKER -> {
                 if(age>=20 || move(state.getComboSeq())!=HELM_BRAKER){MOTIONS.remove(player);return;}
-                // A ServerPlayer's position is driven by client movement packets. Send downward
-                // velocity, not a server-only move followed by the previous (often upward) velocity.
+                // Client movement packets control a ServerPlayer's position.
+                // Send the downward velocity to the client.
                 player.setDeltaMovement(0,-1.5,0);player.fallDistance=0;
                 if(age%3==0)damageArea(player,HELM_BRAKER,box(player,HELM_BRAKER),null);
             }

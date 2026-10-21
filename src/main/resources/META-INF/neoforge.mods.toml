@@ -1,35 +1,35 @@
 modLoader="javafml"
 loaderVersion="[4,)"
-license="MIT; legacy-derived portions use the bundled SlashBlade terms"
+license="MIT"
 [[mixins]]
 config="slashblade_legacy_compat.mixins.json"
 [[mods]]
 modId="slashblade_legacy_compat"
 version="${mod_version}"
-displayName="SEAC拔刀剑附属 旧梦重铸"
-displayURL="https://github.com/rianfalltwilight-lab/seac-slashblade-old-dream-reforged"
+displayName="SCEX SlashBlade Legacy Compatibility"
 logoFile="cover.png"
 logoBlur=false
-authors="SEAC contributors; AI assistance: OpenAI Codex"
+authors="SCEX contributors; AI assistance: OpenAI Codex"
 description='''Independent legacy behavior compatibility for SlashBlade: Resharpened. Development candidate, not production accepted.'''
 [[dependencies.slashblade_legacy_compat]]
 modId="minecraft"
 type="required"
+# This module uses the Minecraft 1.21.1 API.
 versionRange="[1.21.1]"
 ordering="NONE"
 side="BOTH"
 [[dependencies.slashblade_legacy_compat]]
 modId="neoforge"
 type="required"
-# Minecraft is pinned separately; do not turn the build's patch version into a runtime requirement.
+# The build patch does not set the minimum runtime patch.
 versionRange="[21.1,)"
 ordering="NONE"
 side="BOTH"
 [[dependencies.slashblade_legacy_compat]]
 modId="slashblade"
 type="required"
-# The framework is required; its release number is not an API compatibility gate.
-# Reproducible build/test inputs remain pinned separately in dependencies.sha256.json.
+# SlashBlade is required. Compatibility depends on its API.
+# dependencies.sha256.json records the exact build and test inputs.
 versionRange="[0,)"
 ordering="AFTER"
 side="BOTH"

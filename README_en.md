@@ -1,19 +1,20 @@
-# SlashBlade Reborn (旧梦重铸)
+# SlashBlade Reborn — Old Dream Reforged
 
-Previously published as **SEAC SlashBlade Old Dream Reforged**. The existing repository, release filenames, and Minecraft mod ID retain their established identifiers.
+An unofficial client/server addon for SlashBlade: Resharpened, restoring legacy combos, phantom swords, formations, base special attacks, rank, forging, blade breaking and repair while retaining modern damage-protection interfaces.
 
-**[Complete license notice](LICENSE.md)** · **[CurseForge / Modrinth project links](docs/platform-links.md)**
+Previously published as **SEAC SlashBlade Old Dream Reforged**. The repository address and mod ID `slashblade_legacy_compat` remain the same.
 
-![Old Dream Reforged cover](src/main/resources/cover.png)
+| Minecraft | Loader | Development release |
+| --- | --- | --- |
+| 1.21.1 | NeoForge | [0.3.0-dev.10](https://github.com/rianfalltwilight-lab/seac-slashblade-old-dream-reforged/releases/tag/v0.3.0-dev.10) |
+| 1.20.1 | Forge | [0.3.0-dev.16](https://github.com/rianfalltwilight-lab/seac-slashblade-old-dream-reforged/releases/tag/mc1.20.1-forge-v0.3.0-dev.16) |
 
-**[⬇ Download 0.3.0-dev.4 runtime JAR](https://github.com/rianfalltwilight-lab/seac-slashblade-old-dream-reforged/releases/download/v0.3.0-dev.4/SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-0.3.0-dev.4.jar)**
+Install only the matching runtime JAR on both client and server. Remove the previous addon JAR. Sources JARs and source ZIPs are for development; contract probes are not player release assets.
 
-For Minecraft 1.21.1. Place the downloaded JAR in mods.
+This update improves lock-on, phantom-sword AirTrick anchors, collision handling and combat bookkeeping. See the [1.21.1 notes](docs/releases/0.3.0-dev.10.md), [1.20.1 Forge notes](docs/releases/mc1.20.1-forge-0.3.0-dev.16.md) and [validation scope](VALIDATION.md).
 
-Version **0.3.0-dev.4**, development prerelease. Active reference: **SlashBlade mc1.7.10-r87**. Minecraft 1.21.1 / NeoForge 21.1.248 / Java 21. Required Resharpened dependency is tested at 2.0.7; relaxed version metadata does not guarantee compatibility with other internal APIs.
+The repository root builds Minecraft 1.21.1 with Java 21: `./gradlew --no-daemon build`. Run the isolated development contracts with `./gradlew --no-daemon runContracts`. The [1.20.1 port](ports/1.20.1) has separate build instructions. Exact build inputs are pinned independently of runtime dependency ranges.
 
-Restores legacy combos, combat formulas, swords/formations, nine base arts, enchantment/repair/break/anvil and blade-soul behavior, retaining modern protection cancellation and explicit adaptations. Install matching client/server versions. Separate NR/SI candidates are not bundled.
+Project license: **MIT-and-Third-Party-Licenses**. See [LICENSE.md](LICENSE.md), [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md), [NOTICE](NOTICE), and [AI-GENERATED.md](AI-GENERATED.md). Third-party dependency binaries are not included in the source repository.
 
-Build and isolated r87 contracts: `./gradlew --no-daemon clean build runContracts`. Dependencies are fetched with fixed hashes. Probe JARs are development-only. Back up mods, configuration and worlds; validate upgrades and rollbacks on copies. Removing this mod alone is not guaranteed safe for new combo states or in-flight entities.
-
-See [release notes](docs/releases/0.3.0-dev.4.md), [validation](VALIDATION.md), [third-party attribution](THIRD-PARTY-NOTICES.md) and [AI disclosure](AI-GENERATED.md). The project-level license notice is [MIT-and-Third-Party-Licenses](LICENSE.md): independent original contributions are MIT, while legacy-derived portions retain the original r87 and 1.12 terms.
+[中文](README.md)

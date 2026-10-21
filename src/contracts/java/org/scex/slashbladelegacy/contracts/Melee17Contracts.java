@@ -61,7 +61,7 @@ final class Melee17Contracts {
     }
     private static void resetRank(ServerPlayer player) {
         var rank=player.getData(CapabilityConcentrationRank.RANK_POINT);rank.setRawRankPoint(0);rank.setLastUpdte(player.level().getGameTime());
-        for(var key:new ArrayList<>(player.getPersistentData().getAllKeys()))if(key.startsWith("slashblade_legacy_compat.rank_cd."))player.getPersistentData().remove(key);
+        org.scex.slashbladelegacy.LegacyRank.clearCooldowns(player);
         LegacyDamage.update(player);
     }
     private static void check(boolean value,String message){if(!value)throw new AssertionError("r87 melee: "+message);}

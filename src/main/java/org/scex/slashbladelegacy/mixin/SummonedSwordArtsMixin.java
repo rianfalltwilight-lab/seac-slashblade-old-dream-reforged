@@ -11,8 +11,9 @@ import org.scex.slashbladelegacy.SummonedBladeMode;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
-/** Suppress only the immediate shot callback; public input scheduling remains intact.
- * This uses the stable Optional callback in onInputChange, without compiler-generated lambda numbers. */
+/** Legacy mode cancels native onInputChange scheduling.
+ * Modern mode retains native input scheduling.
+ * The immediate-shot hook uses Optional.ifPresent in onInputChange. */
 @Mixin(value=SummonedSwordArts.class,remap=false)
 public abstract class SummonedSwordArtsMixin {
     @org.spongepowered.asm.mixin.injection.Inject(method="onInputChange",at=@At("HEAD"),cancellable=true)

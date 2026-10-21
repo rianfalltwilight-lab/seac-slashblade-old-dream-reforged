@@ -26,8 +26,7 @@ public final class LegacyTargets {
                 || living.hasPassenger(passenger -> passenger == player)
                 || living.getType().is(EntityTypeTags.ATTACKABLE_BLACKLIST)) return false;
         // Keep the server's explicit PvP setting and modern noncombat decoration protection.
-        if (living instanceof Player other) return !other.getAbilities().invulnerable
-                && SlashBladeConfig.PVP_ENABLE.get() && (player.getServer()==null || player.getServer().isPvpAllowed()) && player.canHarmPlayer(other);
+        if (living instanceof Player other) return !other.getAbilities().invulnerable && pvpAllowed(player, other);
         if (living instanceof ArmorStand) return false;
         if (living instanceof OwnableEntity ownable && ownable.getOwnerUUID() != null) return false;
         if (living instanceof Enemy || HostileTargeting.isAdditionalHostile(living)) return true;
@@ -35,6 +34,11 @@ public final class LegacyTargets {
         if (LegacyCompat.isEnabled(LegacyCompat.FRIENDLY_TARGETS)) return true;
         // 1.7.10 accepted other living entities by default. IMob was an override, not a requirement.
         return defaultAttackable(living);
+    }
+
+    /** Apply the SlashBlade PvP setting, the server PvP setting and team rules. */
+    public static boolean pvpAllowed(Player player, Player other) {
+        return SlashBladeConfig.PVP_ENABLE.get() && (player.getServer()==null || player.getServer().isPvpAllowed()) && player.canHarmPlayer(other);
     }
 
     public static boolean defaultAttackable(LivingEntity living) {

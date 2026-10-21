@@ -18,9 +18,10 @@ import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.*;
 
-/** r87's finite SA managers. Only the dimension field is visible; all decisions are server-owned. */
+/** Run r87 SA timers on the server. Render only the dimension field. */
 public final class LegacyArtEntity extends EntityAbstractSummonedSword {
     public enum Mode { DIMENSION, SPEAR, SAKURA, MAXIMUM, JUDGEMENT }
+    private static final Mode[] MODES=Mode.values();
     private static final EntityDataAccessor<Integer> MODE=SynchedEntityData.defineId(LegacyArtEntity.class,EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> AGE=SynchedEntityData.defineId(LegacyArtEntity.class,EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> LIFE=SynchedEntityData.defineId(LegacyArtEntity.class,EntityDataSerializers.INT);
@@ -30,7 +31,7 @@ public final class LegacyArtEntity extends EntityAbstractSummonedSword {
     private static final String TELEPORT="slashblade_legacy_compat.teleport_until";
     public LegacyArtEntity(EntityType<? extends Projectile> type,Level level){super(type,level);setNoGravity(true);}
     @Override protected void defineSynchedData(SynchedEntityData.Builder builder){super.defineSynchedData(builder);builder.define(MODE,0);builder.define(AGE,0);builder.define(LIFE,10);builder.define(SEED,0);}
-    public Mode mode(){return Mode.values()[Math.clamp(entityData.get(MODE),0,Mode.values().length-1)];}
+    public Mode mode(){return MODES[Math.clamp(entityData.get(MODE),0,MODES.length-1)];}
     public int age(){return entityData.get(AGE);}
     public int lifetime(){return entityData.get(LIFE);}
     public int seed(){return entityData.get(SEED);}
@@ -94,15 +95,16 @@ public final class LegacyArtEntity extends EntityAbstractSummonedSword {
     }
     private void judgement(Player owner,ItemStack blade) {
         owner.setDeltaMovement(Vec3.ZERO);LegacyArts.syncMotion(owner);
-        var server=(ServerLevel)level();var area=new AABB(position(),position()).inflate(32,16,32);
+        var server=(ServerLevel)level();
         if(age()<3)LegacyArts.sound(owner,SoundEvents.ENDERMAN_TELEPORT,1,1);
         if(age()<8){server.sendParticles(ParticleTypes.WITCH,owner.getX(),owner.getY()+1,owner.getZ(),20,2,1,2,.1);LegacyArts.sound(owner,SoundEvents.BLAZE_HURT,.2f,.5f);}
-        if(age()==2)for(var entity:LegacyTargets.within(owner,area))if(entity instanceof LivingEntity target) {
+        if(age()==2)for(var entity:LegacyTargets.within(owner,getBoundingBoxForJudgement()))if(entity instanceof LivingEntity target) {
             target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN,40,30,true,false));
             StunManager.setStun(target,40);LegacyFreeze.apply(target,40);
             server.sendParticles(ParticleTypes.PORTAL,target.getX(),target.getY()+target.getBbHeight()/2,target.getZ(),5,target.getBbWidth()/2,target.getBbHeight()/2,target.getBbWidth()/2,.5);
         }
         if(age()==25) {
+            var area=getBoundingBoxForJudgement();
             float damage=Math.min(1,1+BladeStateAccess.of(blade).orElseThrow().getAttackAmplifier()*LegacyArts.power(owner,blade)/5f);
             for(var entity:LegacyTargets.within(owner,area))if(entity instanceof LivingEntity target) {
                 if(!LegacyDamage.holding(owner,blade))return;
@@ -114,6 +116,7 @@ public final class LegacyArtEntity extends EntityAbstractSummonedSword {
         }
         if(age()==30)LegacyArts.finishSuper(owner,blade);
     }
+    private AABB getBoundingBoxForJudgement(){return new AABB(position(),position()).inflate(32,16,32);}
     public static void teleport(net.neoforged.neoforge.event.entity.EntityTeleportEvent.EnderEntity event) {
         var entity=event.getEntity();if(!(entity instanceof net.minecraft.world.entity.monster.EnderMan) || !entity.getPersistentData().contains(TELEPORT))return;
         long left=entity.getPersistentData().getLong(TELEPORT)-entity.level().getGameTime();
@@ -126,7 +129,7 @@ public final class LegacyArtEntity extends EntityAbstractSummonedSword {
     }
     @Override public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);ownerId=tag.hasUUID("LegacyOwner")?tag.getUUID("LegacyOwner"):null;sourceId=tag.hasUUID("LegacySource")?tag.getUUID("LegacySource"):null;
-        entityData.set(MODE,Math.clamp(tag.getInt("LegacyMode"),0,Mode.values().length-1));entityData.set(AGE,Math.clamp(tag.getInt("LegacyAge"),0,200));
+        entityData.set(MODE,Math.clamp(tag.getInt("LegacyMode"),0,MODES.length-1));entityData.set(AGE,Math.clamp(tag.getInt("LegacyAge"),0,200));
         entityData.set(LIFE,Math.clamp(tag.getInt("LegacyLife"),1,200));entityData.set(SEED,Math.clamp(tag.getInt("LegacySeed"),0,49));dimension=tag.getBoolean("LegacyDimension");
         if(!Double.isFinite(getDamage()) || getDamage()<0)setDamage(1);setNoGravity(true);
     }

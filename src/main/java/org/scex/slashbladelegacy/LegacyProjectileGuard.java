@@ -1,6 +1,5 @@
 package org.scex.slashbladelegacy;
 
-import mods.flammpfeil.slashblade.SlashBladeConfig;
 import mods.flammpfeil.slashblade.capability.slashblade.BladeStateAccess;
 import mods.flammpfeil.slashblade.item.SwordType;
 import mods.flammpfeil.slashblade.registry.ComboStateRegistry;
@@ -55,7 +54,7 @@ public final class LegacyProjectileGuard {
     public static boolean protectedOwner(Player player,Entity owner) {
         return owner==player || owner!=null && (owner.isAlliedTo(player) || player.isAlliedTo(owner)
                 || owner instanceof OwnableEntity own && player.getUUID().equals(own.getOwnerUUID())
-                || owner instanceof Player && !SlashBladeConfig.PVP_ENABLE.get());
+                || owner instanceof Player other && !LegacyTargets.pvpAllowed(player,other));
     }
     public static boolean destructible(Player player,Entity entity) {
         if(!entity.isAlive() || !(entity instanceof Projectile || entity instanceof PrimedTnt))return false;
@@ -63,7 +62,7 @@ public final class LegacyProjectileGuard {
         Entity shooter=entity instanceof mods.flammpfeil.slashblade.entity.IShootable shootable?shootable.getShooter():null;
         return !protectedOwner(player,owner) && !protectedOwner(player,shooter);
     }
-    /** r87 summoned attacks ask fireballs to deflect before destruction, and score either accepted outcome. */
+    /** Try to deflect fireballs before destruction. Award rank for either accepted outcome. */
     public static boolean destruct(Player player,Entity entity,float amount) {
         if(player.level().isClientSide || !destructible(player,entity))return false;
         int deflection=deflectFireball(player,entity,amount);
@@ -76,18 +75,18 @@ public final class LegacyProjectileGuard {
         LegacyRank.awardAction(player,player.getData(mods.flammpfeil.slashblade.capability.concentrationrank.CapabilityConcentrationRank.RANK_POINT),"DestructObject",.1f);
         return true;
     }
-    /** 1 reflected, 0 destructible, -1 protected/refused; a rejected modern deflection is not destruction. */
+    /** Return 1 for deflection, 0 if destruction is allowed, or -1 for refusal. */
     private static int deflectFireball(Player player,Entity entity,float amount) {
         if(!(entity instanceof AbstractHurtingProjectile fireball))return 0;
         var source=player.damageSources().mobAttack(player);
         if(fireball.isInvulnerableTo(source))return -1;
-        // 1.21 Fireball.hurt always returns false. Player.attack first uses this public tagged path.
+        // Vanilla 1.21 Fireball.hurt returns false. Use the tagged deflection API first.
         if(fireball.getType().is(net.minecraft.tags.EntityTypeTags.REDIRECTABLE_PROJECTILE))
             return fireball.deflect(ProjectileDeflection.AIM_DEFLECT,player,player,true)?1:-1;
         var oldOwner=fireball.getOwner();
         if(!fireball.hurt(source,amount))return 0;
-        // Since 1.21, hurt only accepts the hit; Player.attack performs deflection separately.
-        // Keep a modded hurt callback's owner change, otherwise invoke the modern deflection API.
+        // Keep an owner change from a modded hurt callback.
+        // If the owner did not change, call the deflection API.
         if(fireball.getOwner()==oldOwner && !fireball.deflect(ProjectileDeflection.AIM_DEFLECT,player,player,true))return -1;
         return 1;
     }
@@ -115,7 +114,7 @@ public final class LegacyProjectileGuard {
                 if(projectile instanceof AbstractHurtingProjectile fireball)fireball.accelerationPower=.1;
                 projectile.hurtMarked=true;
             }else {
-                // Unenchanted blades retain fireballs' own deflection callback before destruction.
+                // Try the fireball's deflection callback before destruction.
                 if(redirect && deflectFireball(player,entity,1)!=0)continue;
                 entity.discard();destroyed++;
             }

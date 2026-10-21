@@ -1,0 +1,30 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "org.scex.slashbladelegacy.contracts.mixin",
+  "plugin": "org.scex.slashbladelegacy.mixin.LegacyMixinPlugin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "slashblade_legacy_contracts.refmap.json",
+  "mixins": [
+    "LoadTickMixin"
+  ],
+  "client": [
+    "ProbeMouseInvoker",
+    "ProbeKeyboardInvoker",
+    "ProbeCreativeTabInvoker",
+    "ProbeUseItemInvoker",
+    "RenderStallModelMixin",
+    "RenderStallModelLoadMixin",
+    "RenderStallTextureMixin",
+    "RenderStallUploadMixin",
+    "RenderStallObjMixin",
+    "RenderStallStateMixin",
+    "RenderStallCustomDataMixin",
+    "RenderStallLayerMixin",
+    "RenderStallHeldMixin",
+    "RenderStallTimelineMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

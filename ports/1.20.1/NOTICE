@@ -1,0 +1,20 @@
+SEAC SlashBlade Add-on: Old Dream Reforged
+Copyright (c) 2026 SEAC contributors
+
+This repository contains an independent compatibility add-on for SlashBlade:
+Resharpened. It does not contain or redistribute the SlashBlade: Resharpened
+dependency JAR, Minecraft, NeoForge, Botania, or their art assets.
+
+Selected behavior, transform equations, and exact mesh data were derived from
+Furia/flammpfeil's legacy SlashBlade at commit
+ba1ef8604c0971f68336b882b42a868df7f32f0b. The original Japanese usage terms
+are preserved verbatim in LICENSE-LEGACY-README.txt. See
+THIRD-PARTY-NOTICES.md for the affected scope and links. Those portions are
+not relicensed solely by this repository's MIT file.
+
+SlashBlade: Resharpened is an external dependency. Its code and art remain
+subject to the terms published by its maintainers.
+
+OpenAI Codex materially assisted analysis, implementation support, testing,
+documentation, public-source review, and release preparation under maintainer
+direction. See AI-GENERATED.md.

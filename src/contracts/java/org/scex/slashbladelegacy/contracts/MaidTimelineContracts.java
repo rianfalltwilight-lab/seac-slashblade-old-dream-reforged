@@ -30,6 +30,29 @@ final class MaidTimelineContracts {
     private static final List<Entity> spawned=new ArrayList<>();
     private static void check(boolean result,String message) { checks++; if(!result)throw new AssertionError(message); }
 
+    static void runTimelineOnly(MinecraftServer server,Map<String,Object> report) {
+        checks=0;var level=server.overworld();long originalTime=level.getGameTime();
+        var user=EntityType.ZOMBIE.create(level);
+        try {
+            check(user!=null,"timeline fixture exists");
+            user.setItemSlot(EquipmentSlot.MAINHAND,blade(level));
+            boolean optimized=Arrays.stream(ComboState.TimeLineTickAction.class.getDeclaredFields()).anyMatch(f->f.getName().contains("scex$actionTicks"));
+            check(optimized,"known upstream timeline uses bounded queries");
+            boolean noneGuard=Files.exists(Path.of("upstream-none-guard.flag"));
+            var trace=new ArrayList<Integer>();
+            var action=ComboState.TimeLineTickAction.getBuilder().put(2,e->trace.add(2)).build();
+            reset(user,6,1);action.accept(user);
+            check(trace.equals(noneGuard?List.of():List.of(2)),"preserve upstream NONE callback rule");
+            check(user.getPersistentData().getInt(CURSOR)==(noneGuard?1:7),"preserve upstream NONE cursor rule");
+            timelineSemantics(user,optimized,report);
+            report.put("upstream_none_guard",noneGuard);
+        } finally {
+            if(user!=null)user.discard();
+            level.getServer().getWorldData().overworldData().setGameTime(originalTime);
+            report.put("upstream_timeline_checks",checks);
+        }
+    }
+
     static void run(MinecraftServer server,Map<String,Object> report) throws Exception {
         checks=0;var level=server.overworld();long originalTime=level.getGameTime();
         try {
@@ -78,24 +101,28 @@ final class MaidTimelineContracts {
         var state=BladeStateAccess.of(user.getMainHandItem()).orElseThrow();state.setLastActionTime(100);state.setComboSeq(ComboStateRegistry.NONE.getId());
         user.getPersistentData().putInt(CURSOR,cursor);
     }
-    private static void timelineSemantics(Mob maid,boolean optimized,Map<String,Object> report) {
+    private static void resetActive(LivingEntity user,long elapsed,int cursor) {
+        reset(user,elapsed,cursor);
+        BladeStateAccess.of(user.getMainHandItem()).orElseThrow().setComboSeq(ComboStateRegistry.STANDBY.getId());
+    }
+    private static void timelineSemantics(LivingEntity maid,boolean optimized,Map<String,Object> report) {
         var trace=new ArrayList<Integer>();var builder=ComboState.TimeLineTickAction.getBuilder();
         for(int tick:new int[]{50,2,0,5})builder.put(tick,e->trace.add(tick));
-        var action=builder.build();reset(maid,6,0);action.accept(maid);
+        var action=builder.build();resetActive(maid,6,0);action.accept(maid);
         check(trace.equals(List.of(0,2,5)) && maid.getPersistentData().getInt(CURSOR)==7,"sparse catch-up ordered exactly once");
         action.accept(maid);check(trace.size()==3,"same elapsed tick not replayed");
-        reset(maid,60,7);action.accept(maid);check(trace.equals(List.of(0,2,5,50)) && maid.getPersistentData().getInt(CURSOR)==61,"late final callback");
-        reset(maid,61,61);action.accept(maid);check(maid.getPersistentData().getInt(CURSOR)==61,"empty tail leaves shared cursor unchanged");
-        var empty=ComboState.TimeLineTickAction.getBuilder().build();reset(maid,10,3);empty.accept(maid);check(maid.getPersistentData().getInt(CURSOR)==3,"empty timeline does not consume another timeline's progress");
-        trace.clear();reset(maid,6,0);
+        resetActive(maid,60,7);action.accept(maid);check(trace.equals(List.of(0,2,5,50)) && maid.getPersistentData().getInt(CURSOR)==61,"late final callback");
+        resetActive(maid,61,61);action.accept(maid);check(maid.getPersistentData().getInt(CURSOR)==61,"empty tail leaves shared cursor unchanged");
+        var empty=ComboState.TimeLineTickAction.getBuilder().build();resetActive(maid,10,3);empty.accept(maid);check(maid.getPersistentData().getInt(CURSOR)==3,"empty timeline does not consume another timeline's progress");
+        trace.clear();resetActive(maid,6,0);
         var second=ComboState.TimeLineTickAction.getBuilder().put(1,e->trace.add(101)).build();
         action.andThen(second).accept(maid);
         check(trace.equals(List.of(0,2,5,101)) && maid.getPersistentData().getInt(CURSOR)==7,"andThen retains shared start for both timelines");
-        trace.clear();reset(maid,6,0);empty.andThen(second).andThen(e->trace.add(999)).accept(maid);
+        trace.clear();resetActive(maid,6,0);empty.andThen(second).andThen(e->trace.add(999)).accept(maid);
         check(trace.equals(List.of(101,999)) && maid.getPersistentData().getInt(CURSOR)==7,"empty and ordinary callbacks compose");
         var failure=new IllegalStateException("expected callback failure");
         var throwsAction=ComboState.TimeLineTickAction.getBuilder().put(0,e->{}).put(2,e->{throw failure;}).build();
-        reset(maid,6,0);try{throwsAction.accept(maid);throw new AssertionError("swallowed callback failure");}catch(IllegalStateException ex){check(ex==failure && maid.getPersistentData().getInt(CURSOR)==7,"callback exception preserves earlier progress");}
+        resetActive(maid,6,0);try{throwsAction.accept(maid);throw new AssertionError("swallowed callback failure");}catch(IllegalStateException ex){check(ex==failure && maid.getPersistentData().getInt(CURSOR)==7,"callback exception preserves earlier progress");}
         // Oracle is the exact old inclusive integer-loop contract, bounded here to small input horizons.
         var rng=new Random(0x5ce871L);var oracleTrace=new ArrayList<String>();
         for(int test=0;test<256;test++) {
@@ -103,17 +130,17 @@ final class MaidTimelineContracts {
             var b=ComboState.TimeLineTickAction.getBuilder();
             for(int i=0;i<12;i++) {int k=rng.nextInt(70)-10;Consumer<LivingEntity> callback=rng.nextBoolean()?e->{observed.add(k);e.getPersistentData().putInt(CURSOR,-19);}:null;map.put(k,callback);b.put(k,callback);}
             int elapsed=rng.nextInt(80),start=rng.nextInt(100)-10;
-            reset(maid,elapsed,start);
+            resetActive(maid,elapsed,start);
             for(int tick=start;tick<=elapsed;tick++) {var c=map.get(tick);if(c!=null){c.accept(maid);maid.getPersistentData().putInt(CURSOR,elapsed+1);}}
             var expected=List.copyOf(observed);int expectedCursor=maid.getPersistentData().getInt(CURSOR);observed.clear();
-            reset(maid,elapsed,start);b.build().accept(maid);
+            resetActive(maid,elapsed,start);b.build().accept(maid);
             check(observed.equals(expected) && maid.getPersistentData().getInt(CURSOR)==expectedCursor,"reference comparison "+test);
             oracleTrace.add(observed+":"+expectedCursor);
         }
         if(optimized) {
-            trace.clear();reset(maid,Integer.MAX_VALUE,0);action.accept(maid);
+            trace.clear();resetActive(maid,Integer.MAX_VALUE,0);action.accept(maid);
             check(trace.equals(List.of(0,2,5,50)),"maximum int horizon terminates with all registered callbacks");
-            reset(maid,Integer.MAX_VALUE,0);empty.accept(maid);check(maid.getPersistentData().getInt(CURSOR)==0,"maximum int empty timeline bounded");
+            resetActive(maid,Integer.MAX_VALUE,0);empty.accept(maid);check(maid.getPersistentData().getInt(CURSOR)==0,"maximum int empty timeline bounded");
         }
         report.put("timeline_reference_trace",oracleTrace);
     }

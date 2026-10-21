@@ -10,16 +10,23 @@ import net.minecraft.world.item.enchantment.Enchantments;
 
 public final class LegacyAdditionalAttack {
     private static final String CHARGED="scex_legacy_charged";
+    /** Read-only query. Only putBoolean(CHARGED,true) writes this key. */
+    private static final net.minecraft.nbt.CompoundTag CHARGED_TRUE=new net.minecraft.nbt.CompoundTag();
+    static {CHARGED_TRUE.putBoolean(CHARGED,true);}
     private LegacyAdditionalAttack(){}
+    // Test the flag without a full custom-data copy. Copy only when the flag changes.
+    private static boolean charged(net.minecraft.world.item.ItemStack blade) {
+        return blade.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).matchedBy(CHARGED_TRUE);
+    }
     public static void clearCharged(net.minecraft.world.item.ItemStack blade) {
+        if(!blade.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).contains(CHARGED))return;
         var data=blade.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag();
-        if(!data.contains(CHARGED))return;
         data.remove(CHARGED);blade.set(DataComponents.CUSTOM_DATA,CustomData.of(data));
     }
     public static void markCharged(net.minecraft.world.entity.LivingEntity user,net.minecraft.resources.ResourceLocation result) {
         if(!org.scex.slashbladelegacy.LegacyMode.legacy(user) || result==null || result.equals(ComboStateRegistry.NONE.getId()))return;
         var blade=user.getMainHandItem();var state=BladeStateAccess.of(blade).orElse(null);
-        if(state==null)return;
+        if(state==null || charged(blade))return;
         var data=blade.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag();data.putBoolean(CHARGED,true);
         blade.set(DataComponents.CUSTOM_DATA,CustomData.of(data));
     }
@@ -27,8 +34,8 @@ public final class LegacyAdditionalAttack {
         if(player.level().isClientSide || move.scabbard || move==LegacyMove.NOUTOU)return;
         var blade=player.getMainHandItem();var state=BladeStateAccess.of(blade).orElseThrow();
         int rank=LegacyCombat.rank(player);
-        var data=blade.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag();
-        if(data.getBoolean(CHARGED)) {
+        if(charged(blade)) {
+            var data=blade.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag();
             data.remove(CHARGED);blade.set(DataComponents.CUSTOM_DATA,CustomData.of(data));
             if(rank>=4 && !state.isBroken() && SwordType.from(blade).contains(SwordType.BEWITCHED)) {
                 if(state.getProudSoulCount()>=10)state.setProudSoulCount(state.getProudSoulCount()-10);

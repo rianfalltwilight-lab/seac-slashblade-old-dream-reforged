@@ -1,0 +1,94 @@
+package org.scex.slashbladelegacy;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
+import mods.flammpfeil.slashblade.capability.concentrationrank.IConcentrationRank;
+import org.scex.slashbladelegacy.BladeStateAccess;
+import mods.flammpfeil.slashblade.registry.ComboStateRegistry;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.player.Player;
+
+/** Legacy hit awards normalized to Resharpened's rank unit, retaining native HUD and sync packets. */
+public final class LegacyRank {
+    private LegacyRank(){}
+    private static final String COOLDOWN="slashblade_legacy_compat.rank_cd.";
+    /** Per-action award cooldowns. They are transient and are not saved with the player. */
+    private static final Map<Player,Map<String,Long>> COOLDOWNS=new WeakHashMap<>();
+    /** Clear transient award cooldowns for an explicit player-state reset. */
+    public static void clearCooldowns(Player player) { COOLDOWNS.remove(player); }
+    /** Clear one action without changing other award cooldowns. */
+    public static void clearCooldown(Player player,String action) {
+        var cooldowns=COOLDOWNS.get(player);
+        if(cooldowns!=null)cooldowns.remove(action);
+    }
+    /** Send the current server rank when the client receives a new player or level instance.
+     * Keep rank points and persistence after death or login unchanged.
+     * Keep r87's low-rank damage rules. */
+    public static void synchronize(Player player) {
+        if (!(player instanceof net.minecraft.server.level.ServerPlayer server)) return;
+        // Older versions saved the cooldowns in player data. Remove those keys.
+        var data=player.getPersistentData();
+        for(var key:List.copyOf(data.getAllKeys()))if(key.startsWith(COOLDOWN))data.remove(key);
+        if (!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT)) return;
+        LegacyMode.bindRank(player);
+        var rank=LegacyCapabilities.rank(player);
+        var message=new mods.flammpfeil.slashblade.network.RankSyncMessage();
+        message.rawPoint=rank.getRankPoint(player.level().getGameTime());
+        mods.flammpfeil.slashblade.network.NetworkManager.INSTANCE.send(net.minecraftforge.network.PacketDistributor.PLAYER.with(()->server),message);
+        LegacyDamage.update(player);
+    }
+    public static boolean award(IConcentrationRank rank,DamageSource source) {
+        if(LegacyProjectileDamage.award(rank,source))return true;
+        if(LegacyDamage.ownsRankSource(source))return true;
+        if(!org.scex.slashbladelegacy.LegacyMode.legacy(source.getEntity()) || !LegacyCompat.isEnabled(LegacyCompat.LEGACY_RANK)
+                || !(source.getEntity() instanceof Player player) || player.level().isClientSide)return false;
+        var state=BladeStateAccess.of(player.getMainHandItem()).orElse(null);
+        if(state==null)return false;
+        var move=LegacyCombat.move(state.getComboSeq());
+        if(move==LegacyMove.NONE || source.getDirectEntity()!=player)return false;
+        if(!source.is(net.minecraft.world.damagesource.DamageTypes.PLAYER_ATTACK)
+                && !source.is(net.minecraft.world.damagesource.DamageTypes.MOB_ATTACK))return false;
+        awardMove(player,rank,move);
+        return true;
+    }
+    public static void awardMove(Player player,IConcentrationRank rank,LegacyMove move) {
+        float factor=switch(move) {
+            case BATTOU,A_KIRIOROSI_FINISH,CALIBUR,HELM_BRAKER -> .5f;
+            case KIRIOROSI,A_KIRIAGE -> .4f;
+            case SLASH_EDGE,RETURN_EDGE -> .2f;
+            case S_SLASH_BLADE -> -.2f;
+            case SLASH_DIM -> .6f;
+            case NONE,NOUTOU -> 0;
+            default -> .3f;
+        };
+        awardAction(player,rank,move==LegacyMove.STINGER?LegacyMove.RAPID_SLASH.name():move.name(),factor);
+    }
+    public static void hurt(net.minecraft.world.entity.LivingEntity victim,IConcentrationRank rank,DamageSource source) {
+        if(!(victim instanceof Player) || victim.level().isClientSide)return;
+        if(source.is(net.minecraft.world.damagesource.DamageTypes.THORNS) || source.is(net.minecraft.tags.DamageTypeTags.IS_FALL)
+                || source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_ARMOR) && source.getEntity()!=null)return;
+        if(source.getEntity() instanceof net.minecraft.world.entity.LivingEntity attacker && attacker.getLastHurtMobTimestamp()==attacker.tickCount)return;
+        long now=victim.level().getGameTime();
+        // Damage after a long idle period clears the raw stored rank, including the preserved band.
+        long next=now-rank.getLastUpdate()>200?0:Math.max(0,rank.getRawRankPoint()-2*rank.getUnitCapacity());
+        rank.setRawRankPoint(next);rank.setLastUpdte(now);rank.addRankPoint(victim,0);
+    }
+    public static void awardAction(Player player,IConcentrationRank rank,String action,float factor) {
+        if(!org.scex.slashbladelegacy.LegacyMode.enabled(player,LegacyCompat.LEGACY_RANK) || factor==0)return;
+        int legacyPoints=(int)(100*Math.abs(factor));
+        long now=player.level().getGameTime();
+        if(factor>0) {
+            // Awards run on the server thread. Do not share the static map with a logical client.
+            var cooldowns=player.level().isClientSide?new HashMap<String,Long>():COOLDOWNS.computeIfAbsent(player,ignored->new HashMap<>());
+            Long stored=cooldowns.get(action);long last=stored==null?0:stored;
+            if(stored==null || last<now || last>now+30)cooldowns.put(action,now+20);
+            else if(last-now<20){legacyPoints/=2;cooldowns.put(action,Math.min(now+30,last+10));}
+            else {legacyPoints=1;cooldowns.put(action,now+30);}
+        }
+        int current=rank.getRank(now).level;
+        for(int i=0;i<Math.max(0,Math.min(5,current)-2);i++)legacyPoints=(int)(legacyPoints*.8f);
+        rank.addRankPoint(player,Math.max(1,legacyPoints)*rank.getUnitCapacity()/100);
+    }
+}

@@ -49,9 +49,13 @@ public final class SummonedBladeMode {
     private record Press(ItemStack blade,long tick,ResourceLocation dimension) {}
     private static final WeakHashMap<ServerPlayer,Press> PRESSES=new WeakHashMap<>();
     private static final WeakHashMap<ServerPlayer,Long> LAST_SHOT=new WeakHashMap<>();
+    /** Read-only query. Only putBoolean(MODE,...) writes this key. */
+    private static final net.minecraft.nbt.CompoundTag MODE_TRUE=new net.minecraft.nbt.CompoundTag();
+    static {MODE_TRUE.putBoolean(MODE,true);}
     public static boolean enabled(ItemStack stack) {
+        // Tooltips call this on each frame. Test the flag without a full custom-data copy.
         return org.scex.slashbladelegacy.LegacyMode.enabled(stack,LegacyCompat.SUMMONED_BLADE) && BladeStateAccess.of(stack).isPresent()
-                && stack.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag().getBoolean(MODE);
+                && stack.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).matchedBy(MODE_TRUE);
     }
     public static void interact(PlayerInteractEvent.EntityInteract event) {
         if (!org.scex.slashbladelegacy.LegacyMode.enabled(event.getEntity(),LegacyCompat.SUMMONED_BLADE) || event.getHand()!=InteractionHand.MAIN_HAND
@@ -117,7 +121,7 @@ public final class SummonedBladeMode {
             source.putUUID(SOURCE,UUID.randomUUID()); blade.set(DataComponents.CUSTOM_DATA,CustomData.of(source));
         }
         var projectile=new LegacySummonedBlade(BLADE.get(),player.level());
-        projectile.initialize(player,power,state.getColorCode(),source.getUUID(SOURCE),state.getTargetEntity(player.level()));
+        projectile.initialize(player,power,LegacyRangeAttack.color(state),source.getUUID(SOURCE),state.getTargetEntity(player.level()));
         if (player.level().addFreshEntity(projectile)) {
             state.setProudSoulCount(state.getProudSoulCount()-1);
             LAST_SHOT.put(player,tick);

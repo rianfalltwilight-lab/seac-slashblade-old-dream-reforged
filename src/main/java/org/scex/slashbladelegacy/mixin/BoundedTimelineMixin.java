@@ -23,7 +23,9 @@ public abstract class BoundedTimelineMixin {
         scex$actionTicks=timeLine.keySet().stream().filter(Objects::nonNull).mapToInt(Integer::intValue).sorted().toArray();
     }
 
-    @Inject(method="accept(Lnet/minecraft/world/entity/LivingEntity;)V",at=@At("HEAD"),cancellable=true)
+    // Newer upstream builds reject NONE before this call. Preserve that check.
+    @Inject(method="accept(Lnet/minecraft/world/entity/LivingEntity;)V",
+            at=@At(value="INVOKE",target="Lmods/flammpfeil/slashblade/registry/combo/ComboState;getElapsed(Lnet/minecraft/world/entity/LivingEntity;)J"),cancellable=true)
     private void scex$runRegisteredActions(LivingEntity user,CallbackInfo ci) {
         ci.cancel();
         if(scex$actionTicks.length==0)return;

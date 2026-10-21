@@ -86,8 +86,9 @@ public final class LegacyDamage {
     }
 
     public static float base(Player player, ItemStack blade) {
-        // Recompute the same attribute operations on a snapshot. No attack cooldown ticker or
-        // temporary mutation of the player's actual attributes is involved in an area hit.
+        // Calculate the attribute result from a snapshot.
+        // Do not read the attack cooldown ticker for an area hit.
+        // Keep the player's actual attributes unchanged.
         var attribute = new AttributeInstance(Attributes.ATTACK_DAMAGE, ignored -> {});
         attribute.replaceFrom(player.getAttribute(Attributes.ATTACK_DAMAGE));
         LegacyDualWield.removeBorrowedMainModifiers(player,attribute);

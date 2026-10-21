@@ -88,7 +88,8 @@ public final class LegacyEnchantments {
         stand.setItem(blade); // Mark the frame's synchronized stack dirty for observing clients.
         for(int i=0;i<spheres;i++) {
             var sphere=new ItemStack(SlashBladeItems.PROUDSOUL_SPHERE.get());var tag=new CompoundTag();
-            tag.putString("SpecialAttackType",event.getSlashBladeState().getSlashArtsKey().toString());
+            var state=event.getSlashBladeState();
+            tag.putString("SpecialAttackType",LegacyNamedBlades.correctedArt(state.getTranslationKey(),state.getSlashArtsKey()).toString());
             sphere.set(DataComponents.CUSTOM_DATA,CustomData.of(tag));stand.spawnAtLocation(sphere);
         }
         if(changed)level.sendParticles(ParticleTypes.CRIT,stand.getX(),stand.getY()+1,stand.getZ(),12,.2,.3,.2,.1);

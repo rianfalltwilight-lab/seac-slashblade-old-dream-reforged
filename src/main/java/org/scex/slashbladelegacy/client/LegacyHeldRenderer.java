@@ -15,13 +15,17 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.scex.slashbladelegacy.*;
 
-/** r87 procedural blade, sheath, afterimages and trail; the dependency supplies only model/render APIs. */
+/** Render r87 blade poses, sheaths, afterimages and trails with the framework model API. */
 public final class LegacyHeldRenderer {
     private static final ResourceLocation TRAIL = ResourceLocation.fromNamespaceAndPath(LegacyCompat.MOD_ID,"model/legacy17/trail.obj");
     private static final ResourceLocation TRAIL_TEXTURE = ResourceLocation.fromNamespaceAndPath(LegacyCompat.MOD_ID,"model/legacy17/trail.png");
+    private static final ResourceLocation CHARGE_TEXTURE = ResourceLocation.withDefaultNamespace("textures/entity/creeper/creeper_armor.png");
+    private static final Quaternionf FIRST_PERSON_TILT = Axis.of(new Vector3f(.9f,.1f,0).normalize()).rotationDegrees(-25);
+    private static final float[] BLUR_PROGRESS={1,.8f,.64f},BLUR_OPACITY={1,.5f,.25f};
     private LegacyHeldRenderer() {}
 
     public static boolean handles(LivingEntity entity) {
@@ -36,14 +40,13 @@ public final class LegacyHeldRenderer {
                 || mc.options.hideGui || mc.gameMode.isAlwaysFlying() || player.isSleeping())return;
         poses.pushPose();
         try {
-            // glLoadIdentity in the original renderer meant eye space. Account for modern global
-            // model-view separately so yaw/pitch cannot rotate the held blade through the screen.
+            // Draw the first-person blade in eye space. Remove the global model-view transform.
             poses.last().pose().set(RenderSystem.getModelViewMatrix()).invert();
             poses.last().normal().set(RenderSystem.getModelViewMatrix()).transpose();
             poses.translate(-.35,-.1,-.8);
             poses.mulPose(Axis.XP.rotationDegrees(-3));poses.mulPose(Axis.ZP.rotationDegrees(180));
             poses.translate(0,.25,0);
-            poses.mulPose(Axis.of(new Vector3f(.9f,.1f,0).normalize()).rotationDegrees(-25));
+            poses.mulPose(FIRST_PERSON_TILT);
             poses.scale(1.2f,1,1);
             render(poses,buffers,light,player,mc.getTimer().getGameTimeDeltaPartialTick(false),false);
         } finally {poses.popPose();}
@@ -77,7 +80,7 @@ public final class LegacyHeldRenderer {
                 draw(blade,model,"sheath",texture,poses,buffers,light,1,false);
                 draw(blade,model,"sheath_luminous",texture,poses,buffers,light,1,true);
                 if(state.isCharged(entity))BladeRenderState.renderChargeEffect(blade,entity.tickCount+partial,model,"effect",
-                        ResourceLocation.withDefaultNamespace("textures/entity/creeper/creeper_armor.png"),poses,buffers,light);
+                        CHARGE_TEXTURE,poses,buffers,light);
             } finally {poses.popPose();}
         } finally {BladeRenderState.resetCol();poses.popPose();}
     }
@@ -90,7 +93,7 @@ public final class LegacyHeldRenderer {
             String part=state.isBroken()?"blade_damaged":"blade";
             int copies=move.scabbard || progress==1?1:3;
             for(int blur=0;blur<copies;blur++) {
-                float p=progress*(float)Math.pow(.8,blur),opacity=(float)Math.pow(.5,blur);
+                float p=progress*BLUR_PROGRESS[blur],opacity=BLUR_OPACITY[blur];
                 poses.pushPose();
                 try {
                     poses.mulPose(LegacyBladePose.matrix(move,p,false,barrier,ticks));
@@ -140,7 +143,8 @@ public final class LegacyHeldRenderer {
             poses.scale(barrier?1:broken?.4f:1,barrier?.8f:broken?.5f:alpha*2,1);
             poses.mulPose(Axis.ZP.rotationDegrees(10*(1-alpha)));
             var model=BladeModelManager.getInstance().getModel(TRAIL);
-            int rgb=Math.abs(color)&0xFFFFFF;
+            // Blade state stores ARGB. Its sign does not mark an inverse effect.
+            int rgb=color&0xFFFFFF;
             BladeRenderState.setCol(((int)(0x66*alpha*opacity)<<24)|(0xFFFFFF-rgb));
             BladeRenderState.renderOverridedReverseLuminous(blade,model,"obj1",TRAIL_TEXTURE,poses,buffers,light);
             BladeRenderState.setCol(((int)(0xFF*alpha*opacity)<<24)|rgb);

@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "#c:bosses", "required": false },
+    { "id": "botania:gaia_guardian", "required": false }
+  ]
+}

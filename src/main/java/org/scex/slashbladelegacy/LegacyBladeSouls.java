@@ -26,6 +26,10 @@ public final class LegacyBladeSouls {
     public static final List<ResourceLocation> POOL=List.of("agito_rust","orotiagito_rust","fox_white","fox_black","yasha","yasha_true")
             .stream().map(id->ResourceLocation.fromNamespaceAndPath("slashblade",id)).toList();
     private LegacyBladeSouls() {}
+    public static void ignite(mods.flammpfeil.slashblade.entity.BladeStandEntity stand) {
+        stand.setRemainingFireTicks(400);stand.setSharedFlagOnFire(true);
+        stand.getPersistentData().putLong(FIRE,stand.level().getGameTime()+400);
+    }
     public static boolean named(ItemStack soul){return soul.is(SlashBladeItems.PROUDSOUL_CRYSTAL.get()) && soul.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag().contains(DEFINITION);}
     public static ItemStack crystal(ServerPlayer player,ResourceLocation key) {
         var definition=player.registryAccess().lookupOrThrow(SlashBladeDefinition.REGISTRY_KEY).get(ResourceKey.create(SlashBladeDefinition.REGISTRY_KEY,key)).orElse(null);
@@ -43,7 +47,7 @@ public final class LegacyBladeSouls {
             event.setCanceled(true);
             if(stand.isOnFire()){stand.clearFire();stand.setSharedFlagOnFire(false);stand.getPersistentData().remove(FIRE);stand.playSound(SoundEvents.ENDER_DRAGON_FLAP,.5f,.5f);return;}
             // r87 consumes even in creative. Extinguishing remains free.
-            soul.shrink(1);stand.setRemainingFireTicks(400);stand.setSharedFlagOnFire(true);stand.getPersistentData().putLong(FIRE,player.level().getGameTime()+400);event.getSlashBladeState().setProudSoulCount(event.getSlashBladeState().getProudSoulCount()+50);
+            soul.shrink(1);ignite(stand);event.getSlashBladeState().setProudSoulCount(event.getSlashBladeState().getProudSoulCount()+50);
             stand.setItem(blade);stand.playSound(SoundEvents.FIRECHARGE_USE,.5f,1);return;
         }
         if(!soul.is(SlashBladeItems.PROUDSOUL.get()) || !stand.isOnFire())return;
@@ -67,7 +71,11 @@ public final class LegacyBladeSouls {
         player.serverLevel().sendParticles(ParticleTypes.ENCHANTED_HIT,stand.getX(),stand.getY()+1,stand.getZ(),12,.2,.3,.2,.1);
     }
     public static void tick(net.neoforged.neoforge.event.tick.EntityTickEvent.Post event) {
-        var entity=event.getEntity();if(entity.level().isClientSide || !(entity instanceof mods.flammpfeil.slashblade.entity.BladeStandEntity || entity instanceof ItemEntity))return;var data=entity.getPersistentData();long now=entity.level().getGameTime();
+        var entity=event.getEntity();
+        // getPersistentData creates and saves a tag. Read it only for stands and soul crystals, which can carry these timers.
+        if(entity.level().isClientSide || !(entity instanceof mods.flammpfeil.slashblade.entity.BladeStandEntity
+                || entity instanceof ItemEntity drop && drop.getItem().is(SlashBladeItems.PROUDSOUL_CRYSTAL.get())))return;
+        var data=entity.getPersistentData();long now=entity.level().getGameTime();
         if(entity instanceof mods.flammpfeil.slashblade.entity.BladeStandEntity && data.contains(FIRE)) {
             long remaining=data.getLong(FIRE)-now;
             if(remaining<=0 || remaining>400 || !LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT)){entity.clearFire();entity.setSharedFlagOnFire(false);data.remove(FIRE);}

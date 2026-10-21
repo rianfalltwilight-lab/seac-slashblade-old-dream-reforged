@@ -12,6 +12,8 @@ Earlier adapters remain traceable to the 1.12.2 commit `ba1ef8604c0971f68336b882
 
 ## External dependencies
 
-[SlashBlade: Resharpened](https://github.com/mrqx0195/SlashBlade_Resharped), M Mysterious Mountain Forging-shop Group and contributors: dependency metadata declares MIT code and art All Rights Reserved. Dependency JAR/models/textures are not embedded. Reproducible build uses 2.0.5-1.21.1, SHA-256 `5b60ff41d89d63e34fbae3d20d9663ae96aa4c594a10b9889a4a39905d44d1c4`.
+[SlashBlade: Resharpened](https://github.com/0999312/SlashBlade_Resharped), M Mysterious Mountain Forging-shop Group and contributors: dependency metadata declares MIT code and art All Rights Reserved. Dependency JAR/models/textures are not embedded. The 1.21.1 build uses 2.0.8, SHA-256 `34e7f11649e3d07e8d403465739550758bcea1430969dacbef29a6e5835a1c7d`; the 1.20.1 port uses 1.9.65, SHA-256 `2a6eb8d2ead295cb3838b551b9f3cf0e81de97966dbc91b84cf2c7589f3a4361`.
 
 NegoreRouse and Singularity Iteration integrations are optional external projects. Their registrations, models, textures, SA/SE and binaries are not redistributed here. Minecraft/Mojang client binaries, mappings and NeoForge binaries are not bundled. Names and trademarks remain with their respective owners.
+
+The 1.20.1 build embeds MixinExtras Forge 0.5.0 as a Jar-in-Jar dependency. MixinExtras is by LlamaLad7 and contributors under MIT; its original license is retained inside the embedded dependency JAR. The source repository does not include the prebuilt dependency JAR. See https://github.com/LlamaLad7/MixinExtras.

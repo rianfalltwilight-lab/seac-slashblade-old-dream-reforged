@@ -98,7 +98,7 @@ final class BaseArts17Contracts {
         blade.setDamageValue(1);var state=BladeStateAccess.of(blade).orElseThrow();state.setBroken(false);state.setSealed(false);state.setProudSoulCount(1000);state.setTargetEntityId(target);
         state.setComboSeq(LegacyCombat.id(LegacyMove.SAYA1));state.setLastActionTime(player.level().getGameTime());
         var rank=player.getData(CapabilityConcentrationRank.RANK_POINT);rank.setRawRankPoint(0);rank.setLastUpdte(player.level().getGameTime());
-        for(var key:new ArrayList<>(player.getPersistentData().getAllKeys()))if(key.startsWith("slashblade_legacy_compat.rank_cd."))player.getPersistentData().remove(key);
+        org.scex.slashbladelegacy.LegacyRank.clearCooldowns(player);
     }
     private static void release(ServerPlayer player,ItemStack blade,int ticks){blade.releaseUsing(player.level(),player,blade.getUseDuration(player)-ticks);}
     private static <T extends Entity> List<T> entities(ServerPlayer player,Class<T> type){return player.level().getEntitiesOfClass(type,new AABB(-100,140,-100,100,200,100),e->!e.isRemoved());}

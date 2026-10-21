@@ -59,11 +59,16 @@ public final class LegacyUpthrust extends EntityAbstractSummonedSword {
     }
     public static void blast(Player player,ItemStack blade) {
         if(player.level().isClientSide || !player.onGround())return;
-        var tag=blade.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag();
+        var data=blade.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY);
+        if(!data.contains(SummonedBladeMode.SOURCE))return;
+        // Each sheathing calls this. Copy the custom data only when this player has a nearby marker.
+        var owned=player.level().getEntitiesOfClass(LegacyUpthrust.class,player.getBoundingBox().inflate(20,5,20),
+                marker->!marker.isRemoved() && marker.getOwner()==player);
+        if(owned.isEmpty())return;
+        var tag=data.copyTag();
         if(!tag.hasUUID(SummonedBladeMode.SOURCE))return;
         UUID source=tag.getUUID(SummonedBladeMode.SOURCE);
-        var markers=player.level().getEntitiesOfClass(LegacyUpthrust.class,player.getBoundingBox().inflate(20,5,20),
-                marker->!marker.isRemoved() && marker.getOwner()==player && source.equals(marker.sourceId) && !marker.source(player).isEmpty());
+        var markers=owned.stream().filter(marker->source.equals(marker.sourceId) && !marker.source(player).isEmpty()).toList();
         // Count only this player's matching markers; old list.size() also counted unrelated swords.
         int damage=markers.size();for(var marker:markers)marker.detonate(player,blade,damage,true);
     }

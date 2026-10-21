@@ -27,7 +27,7 @@ foreach ($required in @('.gitattributes', 'LICENSE', 'NOTICE', 'README.md',
 if (Test-Path -LiteralPath (Join-Path $root '.git')) {
     $tracked = @(& git -C $root ls-files)
     foreach ($forbidden in @('libs', 'reports', 'research', 'runs', 'tools')) {
-        if (@($tracked | Where-Object { $_ -like "$forbidden/*" }).Count) {
+        if (@($tracked | Where-Object { $_ -match "(^|/)$forbidden/" }).Count) {
             throw "Internal or dependency directory is tracked: $forbidden"
         }
     }
@@ -35,20 +35,40 @@ if (Test-Path -LiteralPath (Join-Path $root '.git')) {
 
 $unexpectedJars = @($files | Where-Object {
     $relative = $_.FullName.Substring($root.Length + 1).Replace('\', '/')
-    $_.Extension -ieq '.jar' -and $relative -cne 'gradle/wrapper/gradle-wrapper.jar'
+    $_.Extension -ieq '.jar' -and $relative -cnotin @('gradle/wrapper/gradle-wrapper.jar', 'ports/1.20.1/gradle/wrapper/gradle-wrapper.jar')
 })
 if ($unexpectedJars.Count) { throw 'Third-party or build JAR present in public source.' }
 
 $sourceFiles = @(Get-ChildItem -LiteralPath (Join-Path $root 'src') -Recurse -File)
 $javaFiles = @($sourceFiles | Where-Object Extension -eq '.java')
-if ($sourceFiles.Count -ne 191 -or $javaFiles.Count -ne 167) {
+if ($sourceFiles.Count -ne 241 -or $javaFiles.Count -ne 217) {
     throw "Unexpected source inventory: $($sourceFiles.Count) files / $($javaFiles.Count) Java"
 }
 
 $metadata = Get-Content -Raw -LiteralPath (Join-Path $root 'src/main/resources/META-INF/neoforge.mods.toml')
-if ($metadata -notmatch 'displayName="SEAC拔刀剑附属 旧梦重铸"' -or
+if ($metadata -notmatch 'displayName="SCEX SlashBlade Legacy Compatibility"' -or
         $metadata -notmatch 'modId="slashblade_legacy_compat"') {
     throw 'Formal display name or stable mod ID is missing from metadata.'
+}
+
+$port = Join-Path $root 'ports/1.20.1'
+$portSource = @(Get-ChildItem -LiteralPath (Join-Path $port 'src') -Recurse -File)
+if ($portSource.Count -ne 263 -or @($portSource | Where-Object Extension -eq '.java').Count -ne 236) {
+    throw 'Unexpected Minecraft 1.20.1 source inventory.'
+}
+foreach ($required in @('build.gradle', 'gradlew', 'gradlew.bat', 'gradle/wrapper/gradle-wrapper.jar',
+        'dependencies.sha256.json', 'prepare-dependencies.ps1', 'README.md', 'LICENSE.md', 'SOURCE-MANIFEST.sha256')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $port $required) -PathType Leaf)) {
+        throw "Required 1.20.1 public source file is missing: $required"
+    }
+}
+foreach ($line in Get-Content -LiteralPath (Join-Path $port 'SOURCE-MANIFEST.sha256')) {
+    if ($line -notmatch '^([a-f0-9]{64})  (.+)$') { throw 'Invalid 1.20.1 source manifest entry.' }
+    $expected = $Matches[1]
+    $path = Join-Path $port $Matches[2]
+    if ((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $expected) {
+        throw "1.20.1 source hash mismatch: $($Matches[2])"
+    }
 }
 
 $self = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot 'verify-public-source.ps1')).Path

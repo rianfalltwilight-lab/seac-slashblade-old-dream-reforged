@@ -1,5 +1,9 @@
 package org.scex.slashbladelegacy;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 import mods.flammpfeil.slashblade.capability.concentrationrank.IConcentrationRank;
 import mods.flammpfeil.slashblade.capability.slashblade.BladeStateAccess;
 import mods.flammpfeil.slashblade.registry.ComboStateRegistry;
@@ -9,11 +13,27 @@ import net.minecraft.world.entity.player.Player;
 /** Legacy hit awards normalized to Resharpened's rank unit, retaining native HUD and sync packets. */
 public final class LegacyRank {
     private LegacyRank(){}
-    /** Re-send the current server rank when the client receives a new player/level instance.
-     * This neither awards points nor changes death/login persistence or r87's low-rank damage. */
+    private static final String COOLDOWN="slashblade_legacy_compat.rank_cd.";
+    /** Per-action award cooldowns. They are transient and are not saved with the player. */
+    private static final Map<Player,Map<String,Long>> COOLDOWNS=new WeakHashMap<>();
+    /** Reset transient awards when a caller starts a fresh combat context. Server thread only. */
+    public static void clearCooldowns(Player player) { COOLDOWNS.remove(player); }
+    /** Reset one named action without changing other actions or the player's rank. */
+    public static void clearCooldown(Player player,String action) {
+        var cooldowns=COOLDOWNS.get(player);
+        if(cooldowns==null)return;
+        cooldowns.remove(action);
+        if(cooldowns.isEmpty())COOLDOWNS.remove(player);
+    }
+    /** Send the current server rank when the client receives a new player or level instance.
+     * Keep rank points and persistence after death or login unchanged.
+     * Keep r87's low-rank damage rules. */
     public static void synchronize(Player player) {
-        if (!(player instanceof net.minecraft.server.level.ServerPlayer server)
-                || !LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT)) return;
+        if (!(player instanceof net.minecraft.server.level.ServerPlayer server)) return;
+        // Older versions saved the cooldowns in player data. Remove those keys.
+        var data=player.getPersistentData();
+        for(var key:List.copyOf(data.getAllKeys()))if(key.startsWith(COOLDOWN))data.remove(key);
+        if (!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT)) return;
         LegacyMode.bindRank(player);
         var rank=player.getData(mods.flammpfeil.slashblade.capability.concentrationrank.CapabilityConcentrationRank.RANK_POINT);
         net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(server,
@@ -60,13 +80,13 @@ public final class LegacyRank {
         if(!org.scex.slashbladelegacy.LegacyMode.enabled(player,LegacyCompat.LEGACY_RANK) || factor==0)return;
         int legacyPoints=(int)(100*Math.abs(factor));
         long now=player.level().getGameTime();
-        String key="slashblade_legacy_compat.rank_cd."+action;
-        var data=player.getPersistentData();
         if(factor>0) {
-            long last=data.getLong(key);
-            if(!data.contains(key) || last<now || last>now+30)data.putLong(key,now+20);
-            else if(last-now<20){legacyPoints/=2;data.putLong(key,Math.min(now+30,last+10));}
-            else {legacyPoints=1;data.putLong(key,now+30);}
+            // Awards run on the server thread. Do not share the static map with a logical client.
+            var cooldowns=player.level().isClientSide?new HashMap<String,Long>():COOLDOWNS.computeIfAbsent(player,ignored->new HashMap<>());
+            Long stored=cooldowns.get(action);long last=stored==null?0:stored;
+            if(stored==null || last<now || last>now+30)cooldowns.put(action,now+20);
+            else if(last-now<20){legacyPoints/=2;cooldowns.put(action,Math.min(now+30,last+10));}
+            else {legacyPoints=1;cooldowns.put(action,now+30);}
         }
         int current=rank.getRank(now).level;
         for(int i=0;i<Math.max(0,Math.min(5,current)-2);i++)legacyPoints=(int)(legacyPoints*.8f);

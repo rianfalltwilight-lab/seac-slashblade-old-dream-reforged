@@ -5,6 +5,8 @@ import mods.flammpfeil.slashblade.capability.concentrationrank.CapabilityConcent
 import mods.flammpfeil.slashblade.capability.concentrationrank.IConcentrationRank;
 import mods.flammpfeil.slashblade.capability.inputstate.CapabilityInputState;
 import mods.flammpfeil.slashblade.capability.slashblade.BladeStateAccess;
+import mods.flammpfeil.slashblade.capability.slashblade.SlashBladeDataComponents;
+import mods.flammpfeil.slashblade.item.ItemSlashBlade;
 import mods.flammpfeil.slashblade.entity.IShootable;
 import mods.flammpfeil.slashblade.registry.ComboStateRegistry;
 import mods.flammpfeil.slashblade.util.InputCommand;
@@ -27,12 +29,12 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-/** Server-owned player preference. Inventory markers carry item-only query context, not ownership. */
+/** 服务端保存玩家模式。物品标记只提供模式信息，不表示所有权。 */
 public final class LegacyMode {
     public static final String MODERN="slashblade_legacy_compat.modern_mode";
     private static final String EPOCH="slashblade_legacy_compat.mode_epoch",ACTION_OWNER="slashblade_legacy_compat.action_owner";
     private static final ThreadLocal<Boolean> CONTEXT=new ThreadLocal<>();
-    private static final Map<UUID,Boolean> CLIENT=new HashMap<>(); // client main thread only
+    private static final Map<UUID,Boolean> CLIENT=new HashMap<>(); // 只在客户端主线程访问。
     private static final Map<ServerPlayer,Boolean> PENDING=new WeakHashMap<>();
     private static final Map<UUID,Set<Entity>> OWNED=new HashMap<>();
     private static final Set<Entity> UNCLAIMED=Collections.newSetFromMap(new IdentityHashMap<>());
@@ -66,14 +68,20 @@ public final class LegacyMode {
         if(rank instanceof RankMode mode)mode.legacy$modern(modern(player));
     }
     public static void bind(ItemStack blade,Entity user){
-        var state=BladeStateAccess.of(blade).orElse(null);if(state==null)return;
+        if(blade.isEmpty() || !(blade.getItem() instanceof ItemSlashBlade))return;
         boolean modern=modern(user);
         var data=blade.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY);
-        if(data.contains(MODERN)==modern)return;
+        if(data.contains(MODERN)==modern){
+            if(!blade.has(SlashBladeDataComponents.BLADE_STATE_DATA.get()))BladeStateAccess.of(blade);
+            if(!modern && !user.level().isClientSide)LegacyNamedBlades.seed(blade);
+            return;
+        }
+        var state=BladeStateAccess.of(blade).orElseThrow();
         CustomData.update(DataComponents.CUSTOM_DATA,blade,t->{if(modern)t.putBoolean(MODERN,true);else t.remove(MODERN);});
-        // A blade transferred between users must not bring the previous user's live combo/charge.
+        // 模式变化时清除原用户的连段和蓄力。
         state.setComboSeq(ComboStateRegistry.NONE.getId());state.setLastActionTime(user.level().getGameTime());state.setOnClick(false);
         state.setAttackAmplifier(0);LegacyAdditionalAttack.clearCharged(blade);
+        if(!modern && !user.level().isClientSide)LegacyNamedBlades.seed(blade,state);
     }
     public static void bindInventory(Player player){
         bindRank(player);
@@ -105,7 +113,7 @@ public final class LegacyMode {
             var state=BladeStateAccess.of(blade).orElse(null);
             if(state!=null){var combo=state.peekCurrentComboStateTicks(player).getValue();if(!combo.equals(ComboStateRegistry.NONE.getId()) && !combo.equals(ComboStateRegistry.STANDBY.getId()))return false;}
         }
-        // Only queried while a change is pending. No world scan and no per-attack network round trip.
+        // 只在等待切换时查询已登记的投射物。
         var projectiles=OWNED.get(player.getUUID());
         if(projectiles!=null && projectiles.stream().anyMatch(e->blocks(e,player)))return false;
         return UNCLAIMED.stream().noneMatch(e->blocks(e,player));
@@ -116,10 +124,8 @@ public final class LegacyMode {
     }
     private static boolean dormant(Entity entity){return knownAction(entity) && entity.level() instanceof net.minecraft.server.level.ServerLevel level && !level.isPositionEntityTicking(entity.blockPosition());}
     private static boolean expired(Entity entity){
-        // A projectile can stop ticking when its chunk leaves the entity-ticking range. In
-        // that state its normal final discard never runs, so do the same bounded expiry check
-        // while evaluating a pending mode change. The one-tick margin matches the next normal
-        // tick and avoids preserving an entity that is already at its terminal lifetime.
+        // 模拟距离外的投射物可能停止 tick。
+        // 切换模式时检查到期条件。保留下一 tick 的正常到期边界。
         if(entity instanceof LegacyPhantomSword sword)return sword.age()+1>=Math.max(1,sword.lifetime());
         if(entity instanceof LegacyArtEntity art)return art.age()+1>=Math.max(1,art.lifetime());
         if(entity instanceof LegacyDrive drive)return drive.age()+1>=Math.max(1,drive.getLifetime());
@@ -138,19 +144,17 @@ public final class LegacyMode {
     public static boolean finish(ServerPlayer player){
         if(!LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT)){if(PENDING.remove(player)!=null)message(player,"disabled");return false;}
         Boolean next=PENDING.get(player);if(next==null || !canSettle(player))return false;
-        // Let a completed sheathing settle once under its original rules before changing the mode.
-        if(legacy(player) && canSettle(player)){
-            // Offhand blades do not receive the selected-mainhand inventory tick. Resolve both
-            // states here when their timeout has elapsed, so an expired offhand combo cannot hold
-            // the request forever without ending an active attack early.
+        // 模式切换前，按原模式结算已完成的收刀。
+        if(legacy(player)){
+            // 副手没有主手物品 tick。此处结算两手已超时的连段。
             for(var blade:List.of(player.getMainHandItem(),player.getOffhandItem()))
                 BladeStateAccess.of(blade).filter(s->timedOut(s,player)).ifPresent(s->s.resolvCurrentComboState(player));
             LegacySheathingRepair.tick(player);
         }
-        // Addons can start another action from a sheathing callback. Keep the request queued in that case.
+        // 附属可能在收刀回调中开始新动作。此时继续等待。
         if(!ready(player))return false;
         PENDING.remove(player);
-        // Loaded entities outside simulation distance do not age. They must not hold a request forever.
+        // 移除模拟距离外停止计时的剑技实体，以便完成切换。
         retireDormant(player);
         clearTransient(player);
         player.getPersistentData().putBoolean(MODERN,next);
@@ -169,7 +173,7 @@ public final class LegacyMode {
         return combo!=null && state.getElapsedTime(player)*50L>=combo.getTimeoutMS();
     }
     private static void clearTransient(Player player){
-        LegacyRangeAttack.clear(player);LegacySuperArts.clear(player);LegacyJustGuard.clear(player);LegacyCombat.clear(player);LegacySheathingRepair.clear(player);LegacyInputBudget.clear(player);SummonedBladeMode.clear(player);
+        LegacyRangeAttack.clear(player);LegacySuperArts.clear(player);LegacyJustGuard.clear(player);LegacyCombat.clear(player);LegacySheathingRepair.clear(player);LegacyInputBudget.clear(player);SummonedBladeMode.clear(player);LegacyAirTrick.clear(player);
         var data=player.getPersistentData();
         var scheduler=player.getData(CapabilityInputState.INPUT_STATE).getScheduler();
         var queue=((org.scex.slashbladelegacy.mixin.LegacySchedulerAccessor)scheduler).legacy$queue();
@@ -186,7 +190,7 @@ public final class LegacyMode {
         if(player==null)return true;
         if(data.hasUUID(ACTION_OWNER) && data.getUUID(ACTION_OWNER).equals(player.getUUID()))
             return data.getLong(EPOCH)==player.getPersistentData().getLong(EPOCH);
-        // Also handle old saves made before actions carried an epoch.
+        // 兼容尚未记录动作代次的旧存档。
         if(namespace.equals(LegacyCompat.MOD_ID) && modern(player))return false;
         data.putUUID(ACTION_OWNER,player.getUUID());data.putLong(EPOCH,player.getPersistentData().getLong(EPOCH));return true;
     }
@@ -201,7 +205,7 @@ public final class LegacyMode {
             if(!modern(e.getEntity()))return;
             BladeStateAccess.of(e.getItemStack()).ifPresent(s->{
                 var key=s.getSlashArtsKey();var art=LegacyArts.resolve(key);
-                if(key!=null && key.getNamespace().equals(LegacyCompat.MOD_ID) && (art==LegacyArts.Art.WITHER || art==LegacyArts.Art.MAXIMUM))
+                if(key!=null && key.getNamespace().equals(LegacyCompat.MOD_ID) && (art==LegacyArts.Art.WITHER || art==LegacyArts.Art.MAXIMUM || art==LegacyArts.Art.DIMENSION_SPIRAL))
                     e.getToolTip().add(Component.translatable("slashblade_legacy_compat.mode.fallback_sa"));
             });
         });
@@ -221,6 +225,7 @@ public final class LegacyMode {
             OWNED.values().forEach(set->set.remove(entity));OWNED.values().removeIf(Set::isEmpty);
         });
         NeoForge.EVENT_BUS.addListener((ServerTickEvent.Post e)->{
+            if(UNCLAIMED.isEmpty())return;
             var waiting=new ArrayList<>(UNCLAIMED);UNCLAIMED.clear();for(var entity:waiting)if(!entity.isRemoved()){
                 if(owner(entity)!=null)track(entity);else if(entity.tickCount<5)UNCLAIMED.add(entity);
             }

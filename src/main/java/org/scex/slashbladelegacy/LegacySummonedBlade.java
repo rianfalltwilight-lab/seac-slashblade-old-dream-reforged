@@ -1,11 +1,9 @@
 package org.scex.slashbladelegacy;
 
 import mods.flammpfeil.slashblade.entity.EntityAbstractSummonedSword;
-import mods.flammpfeil.slashblade.capability.slashblade.BladeStateAccess;
 import mods.flammpfeil.slashblade.util.TargetSelector;
 import mods.flammpfeil.slashblade.util.AttackManager;
 import mods.flammpfeil.slashblade.ability.StunManager;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -14,7 +12,6 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import mods.flammpfeil.slashblade.entity.Projectile;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.*;
@@ -22,8 +19,8 @@ import net.minecraft.util.Mth;
 import java.util.Comparator;
 import java.util.UUID;
 
-/** r87 flight/collision with framework packets; the optional pre-r87 adapter remains when full legacy is disabled.
- * Server-only damage; source identity never substitutes the currently equipped blade.
+/** Run r87 flight and collisions with framework packets. Apply damage on the server.
+ * Keep the earlier SB adapter when full legacy combat is disabled.
  */
 public final class LegacySummonedBlade extends EntityAbstractSummonedSword {
     private UUID sourceId,targetId,attachedId,ownerId;
@@ -44,6 +41,11 @@ public final class LegacySummonedBlade extends EntityAbstractSummonedSword {
         super.defineSynchedData(builder); builder.define(AGE,0);builder.define(SPIN,-1f);
     }
     public float frozenSpin() { return entityData.get(SPIN); }
+    /** Return the entity that this blade is stuck in, or null. */
+    public LivingEntity stuckTarget() {
+        if(ended || isRemoved() || level().isClientSide || attachedId==null)return null;
+        return ((ServerLevel)level()).getEntity(attachedId) instanceof LivingEntity living?living:null;
+    }
     @Override public void setOwner(Entity owner) {
         super.setOwner(owner);ownerCache=owner;ownerId=owner==null?null:owner.getUUID();
     }
@@ -68,19 +70,7 @@ public final class LegacySummonedBlade extends EntityAbstractSummonedSword {
     }
     private ItemStack sourceBlade() {
         if (!(getOwner() instanceof Player player) || sourceId==null) return ItemStack.EMPTY;
-        if(LegacyRangeAttack.enabled())return LegacyRangeAttack.sourceBlade(player,sourceId);
-        ItemStack result=ItemStack.EMPTY;
-        for(int i=0;i<player.getInventory().getContainerSize();i++) {
-            var candidate=player.getInventory().getItem(i);
-            if(candidate.isEmpty() || BladeStateAccess.of(candidate).isEmpty())continue;
-            var data=candidate.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag();
-            if(data.hasUUID(SummonedBladeMode.SOURCE) && sourceId.equals(data.getUUID(SummonedBladeMode.SOURCE))
-                    && BladeStateAccess.of(candidate).isPresent()) {
-                if(!result.isEmpty()) return ItemStack.EMPTY; // ambiguous copied identity: fail closed
-                result=candidate;
-            }
-        }
-        return result;
+        return LegacyRangeAttack.sourceBlade(player,sourceId);
     }
     private boolean eligible(LivingEntity target) {
         if(LegacyRangeAttack.enabled())return getOwner() instanceof Player player && LegacyTargets.attackable(player,target);
@@ -165,7 +155,8 @@ public final class LegacySummonedBlade extends EntityAbstractSummonedSword {
     }
     private void homeLegacy(Player owner) {
         if(targetId==null) {
-            var target=level().getEntitiesOfClass(LivingEntity.class,getBoundingBox().inflate(15),e->eligible(e) && owner.hasLineOfSight(e) && distanceToSqr(e)<225)
+            // SB moves through terrain. Unlike r87, acquire unlocked targets without the owner's line of sight.
+            var target=level().getEntitiesOfClass(LivingEntity.class,getBoundingBox().inflate(15),e->distanceToSqr(e)<225 && eligible(e))
                     .stream().min(Comparator.comparingDouble(this::distanceToSqr)).orElse(null);
             if(target!=null)targetId=target.getUUID();return; // r87 uses the target ID captured before acquisition this tick.
         }
@@ -226,6 +217,7 @@ public final class LegacySummonedBlade extends EntityAbstractSummonedSword {
                 attachedOffset=position().subtract(target.position());attachedYaw=getYRot()-target.getYRot();attachedPitch=getXRot()-target.getXRot();
                 entityData.set(SPIN,(level().getGameTime()%6+random.nextFloat())*60);
                 setDeltaMovement(Vec3.ZERO);
+                if(getOwner() instanceof Player player)LegacyAirTrick.stuck(player,this);
                 LegacySwordImpact.post(this,target);
             }
         }

@@ -1,0 +1,154 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev.legacyforge' version '2.0.144'
+}
+version = '0.3.0-dev.16'
+group = 'org.scex'
+def targetLoader = providers.gradleProperty('loader').getOrElse('forge')
+if (!(targetLoader in ['neoforge', 'forge']))
+    throw new GradleException('loader must be neoforge or forge')
+if (targetLoader == 'forge')
+    layout.buildDirectory = layout.projectDirectory.dir('build/forge')
+base { archivesName = "slashblade-legacy-compat-${targetLoader}-1.20.1" }
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+java.withSourcesJar()
+sourceSets { contracts; persistence }
+java {
+    registerFeature('contracts') { usingSourceSet(sourceSets.contracts) }
+    registerFeature('persistence') { usingSourceSet(sourceSets.persistence) }
+}
+configurations {
+    contractsImplementation.extendsFrom implementation
+    contractsRuntimeOnly.extendsFrom runtimeOnly
+    contractsCompileOnly.extendsFrom compileOnly
+    persistenceImplementation.extendsFrom implementation
+    persistenceRuntimeOnly.extendsFrom runtimeOnly
+}
+sourceSets.contracts.compileClasspath += sourceSets.main.output
+sourceSets.contracts.runtimeClasspath += sourceSets.main.output
+sourceSets.persistence.compileClasspath += sourceSets.main.output
+sourceSets.persistence.runtimeClasspath += sourceSets.main.output
+legacyForge {
+    enable {
+        if (targetLoader == 'forge')
+            forgeVersion = '1.20.1-47.4.10'
+        else
+            neoForgeVersion = '1.20.1-47.1.106'
+        disableRecompilation = true
+    }
+    addModdingDependenciesTo(sourceSets.contracts)
+    addModdingDependenciesTo(sourceSets.persistence)
+    runs {
+        client { client(); gameDirectory = file(providers.gradleProperty('clientGameDir').getOrElse('runs/client')) }
+        probeClient {
+            client(); sourceSet = sourceSets.contracts
+            gameDirectory = file(providers.gradleProperty('clientGameDir').getOrElse('runs/probe-client'))
+            jvmArgument '-Xmx2G'
+            jvmArgument '-Dscex.legacy.clientProbe=true'
+        }
+        server { server(); gameDirectory = file(providers.gradleProperty('serverGameDir').getOrElse('runs/server')) }
+        contracts {
+            server(); sourceSet = sourceSets.contracts
+            gameDirectory = file(providers.gradleProperty('contractGameDir').getOrElse('runs/contracts'))
+            jvmArgument '-Xmx2G'
+        }
+    }
+    mods {
+        slashblade_legacy_compat { sourceSet sourceSets.main }
+        slashblade_legacy_contracts { sourceSet sourceSets.contracts }
+    }
+}
+legacyForge.runs.client.loadedMods = [legacyForge.mods.slashblade_legacy_compat]
+legacyForge.runs.server.loadedMods = [legacyForge.mods.slashblade_legacy_compat]
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.minecraftforge.net' }
+    maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+    flatDir { dirs 'libs' }
+}
+
+dependencies {
+    modImplementation 'local:SlashBladeResharped-1.20.1:1.9.65'
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    contractsAnnotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    compileOnly 'io.github.llamalad7:mixinextras-common:0.5.0'
+    annotationProcessor 'io.github.llamalad7:mixinextras-common:0.5.0'
+    contractsAnnotationProcessor 'io.github.llamalad7:mixinextras-common:0.5.0'
+    implementation 'io.github.llamalad7:mixinextras-forge:0.5.0'
+    jarJar('io.github.llamalad7:mixinextras-forge:0.5.0') {
+        version { strictly '[0.5.0,)'; prefer '0.5.0' }
+    }
+}
+mixin {
+    add sourceSets.main, 'slashblade_legacy_compat.refmap.json'
+    add sourceSets.contracts, 'slashblade_legacy_contracts.refmap.json'
+    config 'slashblade_legacy_compat.mixins.json'
+}
+tasks.register('contractsProbeJar', Jar) {
+    archiveClassifier = 'contracts-probe'
+    from(sourceSets.contracts.output)
+    from(layout.buildDirectory.file('mixin/slashblade_legacy_contracts.refmap.json'))
+    manifest.attributes('MixinConfigs': 'legacy17-load.mixins.json')
+}
+tasks.register('persistenceProbeJar', Jar) {
+    archiveClassifier = 'persistence-probe'
+    from(sourceSets.persistence.output)
+    from 'src/persistenceResources'
+}
+obfuscation {
+    reobfuscate(tasks.named('contractsProbeJar'), sourceSets.contracts)
+    reobfuscate(tasks.named('persistenceProbeJar'), sourceSets.persistence)
+}
+tasks.named('reobfJar') {
+    remapOperation.mappings.setFrom(obfuscation.namedToSrgMappings,
+            layout.buildDirectory.file('mixin/slashblade_legacy_compat.refmap.json.mappings.tsrg'))
+}
+tasks.named('reobfContractsProbeJar') {
+    remapOperation.mappings.setFrom(obfuscation.namedToSrgMappings,
+            layout.buildDirectory.file('mixin/slashblade_legacy_compat.refmap.json.mappings.tsrg'),
+            layout.buildDirectory.file('mixin/slashblade_legacy_contracts.refmap.json.mappings.tsrg'))
+}
+tasks.named('reobfPersistenceProbeJar') {
+    remapOperation.mappings.setFrom(obfuscation.namedToSrgMappings,
+            layout.buildDirectory.file('mixin/slashblade_legacy_compat.refmap.json.mappings.tsrg'))
+}
+tasks.register('verifyLocalDependencies') {
+    inputs.file('dependencies.sha256.json')
+    inputs.files(fileTree('libs') { include '*.jar' })
+    doLast {
+        def expected = new groovy.json.JsonSlurper().parse(file('dependencies.sha256.json'))
+        if (fileTree('libs').files.collect { it.name }.sort() != expected.collect { it.file }.sort())
+            throw new GradleException('Dependency inventory mismatch')
+        expected.each { entry ->
+            def artifact = file("libs/${entry.file}")
+            def actual = java.security.MessageDigest.getInstance('SHA-256').digest(artifact.bytes).encodeHex().toString()
+            if (actual != entry.sha256 || artifact.length() != entry.size)
+                throw new GradleException('Dependency hash mismatch')
+        }
+    }
+}
+tasks.named('processResources') {
+    inputs.property('mod_version', project.version)
+    filesMatching('META-INF/mods.toml') { expand(mod_version: project.version) }
+}
+tasks.withType(JavaCompile).configureEach {
+    dependsOn 'verifyLocalDependencies'
+    options.encoding = 'UTF-8'
+    options.release = 17
+    options.compilerArgs += ['-Xmaxerrs', '500']
+}
+tasks.withType(net.neoforged.nfrtgradle.NeoFormRuntimeTask).configureEach {
+    if (providers.gradleProperty('neoFormCacheDir').isPresent())
+        homeDirectory = file(providers.gradleProperty('neoFormCacheDir').get())
+}
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
+tasks.named('jar') {
+    manifest.attributes('MixinConfigs': 'slashblade_legacy_compat.mixins.json')
+    from(files('THIRD-PARTY-NOTICES.md','LICENSE','LICENSE-LEGACY-README.txt','LICENSE-LEGACY17-README.txt')) { into 'META-INF/licenses' }
+}
+tasks.named('sourcesJar') {
+    from(files('THIRD-PARTY-NOTICES.md','LICENSE','LICENSE-LEGACY-README.txt','LICENSE-LEGACY17-README.txt')) { into 'META-INF/licenses' }
+}

@@ -19,14 +19,17 @@ import net.minecraft.world.phys.*;
 import net.neoforged.neoforge.entity.PartEntity;
 import static org.scex.slashbladelegacy.LegacyRangeAttack.Art;
 
-/** r87 phantom/spiral/storm/blistering/rain simulation; Resharpened supplies entity packets and model hooks. */
+/** Run r87 sword movement and collisions. Use Resharpened for packets and models. */
 public final class LegacyPhantomSword extends EntityAbstractSummonedSword {
     private UUID ownerId,sourceId,targetId,holdId,attachedId;
     private Art art=Art.SINGLE;
     private int age,index,interval=7,lifetime=30,remainingHits=2,attachedAge;
-    private boolean fired,ended,judgement,blocked,wither,witherBurst;
+    private boolean fired,ended,judgement,blocked,wither,witherBurst,airTrick;
+    private boolean collisionDispatch;
     private Vec3 attachedOffset=Vec3.ZERO;
     private float aimYaw,aimPitch,attachedYaw,attachedPitch;
+    private org.joml.Matrix4d spiralMatrix;
+    private org.joml.Vector3d spiralVector;
     private final Set<UUID> hitTargets=new HashSet<>();
     public LegacyPhantomSword(EntityType<? extends Projectile> type,Level level) { super(type,level);setNoGravity(true); }
     @Override public void setOwner(Entity owner) { super.setOwner(owner);ownerId=owner==null?null:owner.getUUID(); }
@@ -41,6 +44,17 @@ public final class LegacyPhantomSword extends EntityAbstractSummonedSword {
     public int lifetime() { return lifetime; }
     public boolean wither(){return wither;}
     public boolean witherBurst(){return witherBurst;}
+    public boolean airTrick(){return airTrick;}
+    /** Return the entity that this sword is stuck in, or null. */
+    public LivingEntity stuckTarget(){return ended || isRemoved() || level().isClientSide?null:living(attachedId);}
+    public void initializeTerra(Player owner,UUID source,int number,double damage,LivingEntity target) {
+        initialize(owner,source,Art.STORM,number,damage,0x35C611,target,null,false);
+        interval=7+2*number;lifetime=30;
+    }
+    public void initializeAirTrick(Player owner,UUID source,int color,Entity target) {
+        initialize(owner,source,Art.SINGLE,0,1,color,target,null,false);
+        airTrick=true;interval=0;setPos(owner.getEyePosition());drive(1.75);
+    }
     public void initializeWither(Player owner,UUID source,int number,double damage,LivingEntity target) {
         initialize(owner,source,Art.SINGLE,number,damage,number%2==0?-0x6896cc:-0x1c1c1c,target,null,false);
         wither=true;witherBurst=number%2==0;interval=7+2*number;
@@ -69,7 +83,7 @@ public final class LegacyPhantomSword extends EntityAbstractSummonedSword {
     private boolean eligible(Player owner,Entity target) { return LegacyTargets.attackable(owner,target); }
     @Override public void tick() {
         if(ended || isRemoved())return;
-        // No inherited modern collision, drag, passenger damage, or timeouts. Server packets position the client model.
+        // Run base entity updates only. Server packets position the client model.
         baseTick();
         if(level().isClientSide)return;
         if(!(getOwner() instanceof Player owner) || !owner.isAlive() || LegacyRangeAttack.sourceBlade(owner,sourceId).isEmpty()) { discard();return; }
@@ -106,6 +120,12 @@ public final class LegacyPhantomSword extends EntityAbstractSummonedSword {
         }
         if(age>=lifetime) { burst();return; }
         if(blocked)return;
+        if(airTrick) {
+            // Sweep the exact segment we will travel, including this tick's homing and acceleration.
+            setDeltaMovement(getDeltaMovement().scale(isInWater()?1:1.10f));aim(owner,90,false);orient();
+            if(!collide(owner,true,true))setPos(position().add(getDeltaMovement()));
+            return;
+        }
         boolean canHit=art!=Art.HEAVY_RAIN || age>interval;
         if(collide(owner,canHit,art!=Art.BLISTERING || age>=10))return;
         setDeltaMovement(getDeltaMovement().scale(isInWater()?1:1.10f));
@@ -123,9 +143,11 @@ public final class LegacyPhantomSword extends EntityAbstractSummonedSword {
         }
         int ticks=Math.min(age,interval-7);
         if(art==Art.SPIRAL) {
-            var matrix=new org.joml.Matrix4d().rotateY(Math.toRadians(-owner.getYRot()))
+            // Reuse the held spiral's scratch objects. Keep the original rotation order.
+            if(spiralMatrix==null){spiralMatrix=new org.joml.Matrix4d();spiralVector=new org.joml.Vector3d();}
+            spiralMatrix.identity().rotateY(Math.toRadians(-owner.getYRot()))
                     .rotateY(-Math.toRadians(ticks*5%360)).rotateZ(Math.toRadians(7.5)).rotateY(Math.toRadians(ticks*12+index*60));
-            var vector=matrix.transformDirection(new org.joml.Vector3d(0,0,1)).normalize();
+            var vector=spiralMatrix.transformDirection(spiralVector.set(0,0,1)).normalize();
             setPos(owner.position().add(vector.x*1.5,owner.getBbHeight()/2+vector.y*1.5,vector.z*1.5));
             setDeltaMovement(vector.x,vector.y,vector.z);
         }else {
@@ -146,23 +168,32 @@ public final class LegacyPhantomSword extends EntityAbstractSummonedSword {
     private void aim(Player owner,float step,boolean allowOwnerLook) {
         var target=living(targetId);
         if(target!=null && !eligible(owner,target))target=null;
-        if(target==null && art==Art.SINGLE) {
-            target=findTarget(owner,0);if(target==null)target=findTarget(owner,5);
+        if(target==null && art==Art.SINGLE && !airTrick) {
+            target=findTarget(owner);
             targetId=target==null?null:target.getUUID();
         }
         Vec3 vector=target!=null?target.getEyePosition().subtract(position()):allowOwnerLook && art==Art.BLISTERING?owner.getLookAngle():null;
         if(vector==null)return;
         float yaw=(float)Math.toDegrees(Math.atan2(-vector.x,vector.z));
         float pitch=(float)-Math.toDegrees(Math.atan2(vector.y,Math.sqrt(vector.horizontalDistanceSqr())));
-        aimYaw+=Mth.clamp(Mth.wrapDegrees(yaw-aimYaw),-step,step);aimPitch+=Mth.clamp(Mth.wrapDegrees(pitch-aimPitch),-step,step);drive(1.75);
+        double speed=airTrick?getDeltaMovement().length():1.75;
+        aimYaw+=Mth.clamp(Mth.wrapDegrees(yaw-aimYaw),-step,step);aimPitch+=Mth.clamp(Mth.wrapDegrees(pitch-aimPitch),-step,step);drive(speed);
     }
-    private LivingEntity findTarget(Player owner,double width) {
+    private LivingEntity findTarget(Player owner) {
         var start=owner.getEyePosition();var end=start.add(owner.getLookAngle().scale(30));
         var block=level().clip(new ClipContext(start,end,ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,this));
-        double nearest=start.distanceToSqr(block.getLocation());LivingEntity result=null;
-        for(var candidate:level().getEntitiesOfClass(LivingEntity.class,new AABB(start,end).inflate(width+1),e->eligible(owner,e) && owner.hasLineOfSight(e))) {
+        double limit=start.distanceToSqr(block.getLocation());
+        var target=findTarget(owner,start,end,limit,0);
+        return target!=null?target:findTarget(owner,start,end,limit,5);
+    }
+    private LivingEntity findTarget(Player owner,Vec3 start,Vec3 end,double nearest,double width) {
+        LivingEntity result=null;
+        for(var candidate:level().getEntitiesOfClass(LivingEntity.class,new AABB(start,end).inflate(width+1))) {
             var bounds=candidate.getBoundingBox().inflate(.1+width);var hit=bounds.contains(start)?java.util.Optional.of(start):bounds.clip(start,end);
-            if(hit.isPresent() && start.distanceToSqr(hit.get())<nearest) {nearest=start.distanceToSqr(hit.get());result=candidate;}
+            if(hit.isEmpty())continue;
+            double distance=start.distanceToSqr(hit.get());
+            // Test the ray first. The line-of-sight test casts another ray, so run it last.
+            if(distance<nearest && eligible(owner,candidate) && owner.hasLineOfSight(candidate)) {nearest=distance;result=candidate;}
         }
         return result;
     }
@@ -171,42 +202,65 @@ public final class LegacyPhantomSword extends EntityAbstractSummonedSword {
     }
     private boolean collide(Player owner,boolean attack,boolean blocks) {
         var start=position();var end=start.add(getDeltaMovement());
-        HitResult closest=blocks?level().clip(new ClipContext(start,end,ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,this)):null;
-        double distance=closest==null || closest.getType()==HitResult.Type.MISS?Double.MAX_VALUE:start.distanceToSqr(closest.getLocation());
-        for(var candidate:level().getEntities(this,getBoundingBox().expandTowards(getDeltaMovement()).inflate(1),
-                e->destructible(owner,e) || attack && eligible(owner,e) && (art!=Art.STORM || !hitTargets.contains(e.getUUID())))) {
-            if(art==Art.BLISTERING && targetId!=null && !targetId.equals(candidate.getUUID()) && !destructible(owner,candidate))continue;
-            var bounds=candidate.getBoundingBox().inflate(.3);var hit=bounds.contains(start)?java.util.Optional.of(start):bounds.clip(start,end);
-            if(hit.isPresent() && start.distanceToSqr(hit.get())<distance) {distance=start.distanceToSqr(hit.get());closest=new EntityHitResult(candidate,hit.get());}
-        }
-        if(closest==null || closest.getType()==HitResult.Type.MISS || net.neoforged.neoforge.event.EventHooks.onProjectileImpact(this,closest))return false;
-        if(closest instanceof EntityHitResult hit) {
-            var entity=hit.getEntity();
+        HitResult block=blocks?level().clip(new ClipContext(start,end,ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,this)):null;
+        if(block!=null && block.getType()==HitResult.Type.MISS)block=null;
+        // r87 marker, Blistering, Storm and Spiral swords stop at a block only after their box enters it.
+        // The base sword and Heavy Rain stop at the ray hit.
+        if(block!=null && (airTrick || art==Art.BLISTERING || art==Art.STORM || art==Art.SPIRAL)
+                && !level().getBlockCollisions(this,getBoundingBox()).iterator().hasNext())block=null;
+        var found=entityHit(owner,start,end,attack);
+        if(found!=null && !net.neoforged.neoforge.event.EventHooks.onProjectileImpact(this,found)) {
+            var entity=found.getEntity();
             if(destructible(owner,entity)) {
                 LegacyProjectileGuard.destruct(owner,entity,(float)getDamage());
                 burst();return true;
             }
             var parent=entity instanceof PartEntity<?> part?part.getParent():entity;
-            if(parent instanceof LivingEntity target)onHitEntity(new EntityHitResult(target,hit.getLocation()));
-            return attachedId!=null || isRemoved();
+            if(parent instanceof LivingEntity target) {
+                collisionDispatch=true;
+                try{onHitEntity(new EntityHitResult(target,found.getLocation()));}finally{collisionDispatch=false;}
+            }
+            if(attachedId!=null || isRemoved())return true;
         }
-        if(art==Art.SINGLE) { blocked=true;setPos(closest.getLocation());setDeltaMovement(Vec3.ZERO); }
-        else {setPos(closest.getLocation());burst();}
+        // A rejected or continuing entity hit does not let the sword pass this step's block.
+        if(block==null || net.neoforged.neoforge.event.EventHooks.onProjectileImpact(this,block))return false;
+        if(airTrick)burst();
+        else if(art==Art.SINGLE) { blocked=true;setPos(block.getLocation());setDeltaMovement(Vec3.ZERO); }
+        else {setPos(block.getLocation());burst();}
         return true;
     }
-    /** External force-hit calls must use the same r87 source and attachment rules as collision. */
+    /** r87 getMovingObjectPosition: destructible entities first, then attackable entities.
+     * A found entity replaces the block hit at any distance in this step. */
+    private EntityHitResult entityHit(Player owner,Vec3 start,Vec3 end,boolean attack) {
+        var candidates=level().getEntities(this,getBoundingBox().expandTowards(getDeltaMovement()).inflate(1),
+                e->destructible(owner,e) || attack && eligible(owner,e) && (art!=Art.STORM || !hitTargets.contains(e.getUUID())));
+        for(boolean destruct:new boolean[]{true,false}) {
+            EntityHitResult result=null;double nearest=Double.MAX_VALUE;
+            for(var candidate:candidates) {
+                if(destructible(owner,candidate)!=destruct)continue;
+                if(!destruct && (art==Art.BLISTERING || airTrick) && targetId!=null && !targetId.equals(candidate.getUUID()))continue;
+                var bounds=candidate.getBoundingBox().inflate(.3);var hit=bounds.contains(start)?java.util.Optional.of(start):bounds.clip(start,end);
+                if(hit.isPresent() && start.distanceToSqr(hit.get())<nearest) {nearest=start.distanceToSqr(hit.get());result=new EntityHitResult(candidate,hit.get());}
+            }
+            if(result!=null)return result;
+        }
+        return null;
+    }
+    /** Apply the collision rules to external force-hit calls. */
     @Override protected void onHitEntity(EntityHitResult result) {
-        if(level().isClientSide || ended || isRemoved() || attachedId!=null || LegacySwordImpact.notifying(this))return;
+        if(level().isClientSide || ended || isRemoved() || attachedId!=null || LegacySwordImpact.notifying(this)
+                || airTrick && !collisionDispatch)return;
         var entity=result.getEntity() instanceof PartEntity<?> part?part.getParent():result.getEntity();
         if(!(getOwner() instanceof Player owner) || !owner.isAlive() || LegacyRangeAttack.sourceBlade(owner,sourceId).isEmpty()
                 || !(entity instanceof LivingEntity target) || !eligible(owner,target)
-                || art==Art.STORM && hitTargets.contains(target.getUUID()))return;
-        hit(owner,target);
+                || art==Art.STORM && hitTargets.contains(target.getUUID())
+                || airTrick && targetId!=null && !targetId.equals(target.getUUID()))return;
+        hit(owner,target,result.getLocation());
     }
-    private void hit(Player owner,LivingEntity target) {
+    private void hit(Player owner,LivingEntity target,Vec3 impact) {
         if(wither) {
             if(!strike(owner,target,getDamage(),false,.1))return;
-            // Honor the primary target's damage cancellation before starting the old radius-one explosion.
+            // Start the radius-one explosion only after the target accepts damage.
             if(witherBurst)level().explode(this,getX(),getY(),getZ(),1,false,Level.ExplosionInteraction.NONE);
             else target.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.WITHER,100,1));
             if(!target.isAlive())owner.heal(1);
@@ -224,11 +278,17 @@ public final class LegacyPhantomSword extends EntityAbstractSummonedSword {
             if(art==Art.STORM)hitTargets.add(target.getUUID());
             if(--remainingHits<=0)burst();LegacySwordImpact.post(this,target);return;
         }
+        if(airTrick)setPos(impact);
         attachedId=target.getUUID();attachedAge=art==Art.HEAVY_RAIN?200-(lifetime-age):0;
         attachedOffset=position().subtract(target.position());attachedYaw=getYRot()-target.getYRot();attachedPitch=getXRot()-target.getXRot();
         setDeltaMovement(Vec3.ZERO);
-        // Notify only after damage acceptance and attachment bookkeeping. Addon listeners can
-        // add their own effects, but re-entering doForceHitEntity cannot duplicate this impact.
+        // r87 records every sword that sticks in an entity as the next AirTrick destination.
+        LegacyAirTrick.stuck(owner,this);
+        if(airTrick && owner instanceof net.minecraft.server.level.ServerPlayer player) {
+            airTrick=false;
+            LegacyAirTrick.hit(player,LegacyRangeAttack.sourceBlade(owner,sourceId),target,this);
+        }
+        // Notify addons after damage and attachment. Reject repeated force-hit calls above.
         LegacySwordImpact.post(this,target);
     }
     private boolean strike(Player owner,LivingEntity target,double amount,boolean breaking,double lift) {
@@ -238,7 +298,7 @@ public final class LegacyPhantomSword extends EntityAbstractSummonedSword {
     @Override public void burst() {
         if(ended || isRemoved() || level().isClientSide)return;
         ended=true;
-        if(getOwner() instanceof Player owner) {
+        if(!airTrick && getOwner() instanceof Player owner) {
             for(var target:level().getEntitiesOfClass(LivingEntity.class,getBoundingBox().inflate(1),e->eligible(owner,e) && !hitTargets.contains(e.getUUID())))strike(owner,target,1,false,.1);
         }
         level().playSound(null,blockPosition(),net.minecraft.sounds.SoundEvents.GLASS_BREAK,net.minecraft.sounds.SoundSource.PLAYERS,.25f,1.6f);
@@ -251,6 +311,7 @@ public final class LegacyPhantomSword extends EntityAbstractSummonedSword {
         tag.putString("LegacyArt",art.name());tag.putInt("LegacyAge",age);tag.putInt("LegacyIndex",index);tag.putInt("LegacyInterval",interval);tag.putInt("LegacyLifetime",lifetime);
         tag.putInt("LegacyHits",remainingHits);tag.putInt("LegacyAttachedAge",attachedAge);tag.putBoolean("LegacyFired",fired);tag.putBoolean("LegacyJudgement",judgement);tag.putBoolean("LegacyBlocked",blocked);
         tag.putBoolean("LegacyWither",wither);tag.putBoolean("LegacyWitherBurst",witherBurst);
+        tag.putBoolean("LegacyAirTrick",airTrick);
         tag.putFloat("LegacyAimYaw",aimYaw);tag.putFloat("LegacyAimPitch",aimPitch);tag.putFloat("LegacyRoll",getRoll());
         tag.putDouble("LegacyHitX",attachedOffset.x);tag.putDouble("LegacyHitY",attachedOffset.y);tag.putDouble("LegacyHitZ",attachedOffset.z);
         tag.putFloat("LegacyHitYaw",attachedYaw);tag.putFloat("LegacyHitPitch",attachedPitch);
@@ -265,6 +326,7 @@ public final class LegacyPhantomSword extends EntityAbstractSummonedSword {
         remainingHits=Math.clamp(tag.getInt("LegacyHits"),0,2);attachedAge=Math.clamp(tag.getInt("LegacyAttachedAge"),0,200);
         fired=tag.getBoolean("LegacyFired");judgement=tag.getBoolean("LegacyJudgement");blocked=tag.getBoolean("LegacyBlocked");
         wither=tag.getBoolean("LegacyWither");witherBurst=tag.getBoolean("LegacyWitherBurst");
+        airTrick=tag.getBoolean("LegacyAirTrick");
         aimYaw=finite(tag.getFloat("LegacyAimYaw"));aimPitch=finite(tag.getFloat("LegacyAimPitch"));setRoll(finite(tag.getFloat("LegacyRoll")));
         attachedOffset=new Vec3(finite(tag.getDouble("LegacyHitX")),finite(tag.getDouble("LegacyHitY")),finite(tag.getDouble("LegacyHitZ")));
         attachedYaw=finite(tag.getFloat("LegacyHitYaw"));attachedPitch=finite(tag.getFloat("LegacyHitPitch"));

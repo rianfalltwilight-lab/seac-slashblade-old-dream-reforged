@@ -8,9 +8,11 @@ import org.scex.slashbladelegacy.LegacyCompat;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
-/** Gaia is a hostile boss extending Mob, but does not implement Enemy.
- * Only the local FRIENDLY_ENABLE expression changes; no global config or revenge tags are mutated.
- * Exact 2.0.5 bytecode: BooleanValue.get ordinal 0 = PVP, ordinal 1 = FRIENDLY.
+/** Gaia extends Mob but does not implement Enemy.
+ * These hooks replace local revenge and FRIENDLY_ENABLE results.
+ * Keep global configuration and revenge tags unchanged.
+ * SlashBlade 2.0.5 uses BooleanValue.get ordinal 0 for PVP.
+ * It uses ordinal 1 for FRIENDLY.
  */
 @Mixin(targets="mods.flammpfeil.slashblade.util.TargetSelector$AttackablePredicate", remap=false)
 public abstract class GaiaTargetingMixin {

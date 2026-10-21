@@ -4,3 +4,4 @@
 *.png binary
 *.zip binary
 *.obj -text
+src/** -text

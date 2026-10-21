@@ -4,10 +4,11 @@ on:
   push:
     tags:
       - 'v*'
+      - 'mc1.20.1-forge-v*'
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Existing release tag to verify or publish
+        description: Existing release tag to publish
         required: true
         type: string
 
@@ -15,87 +16,111 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      exists: ${{ steps.release.outputs.exists }}
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - name: Check for an existing release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release already exists; keeping its verified assets."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+  publish:
+    needs: check
+    if: needs.check.outputs.exists == 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-depth: 0
-          ref: ${{ inputs.release_tag || github.ref }}
-      - name: Set up JDK 21
-        uses: actions/setup-java@v5
+          ref: ${{ needs.check.outputs.tag }}
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: |
+            17
+            21
           cache: gradle
-      - name: Make Gradle wrapper executable
-        run: chmod +x ./gradlew
-      - name: Audit, build, and run isolated contracts
+      - name: Audit public source
         shell: pwsh
-        run: |
-          ./scripts/verify-public-source.ps1
-          ./gradlew --no-daemon clean build runContracts
-      - name: Prepare release bundle
+        run: ./scripts/verify-public-source.ps1
+      - name: Select release target
+        env:
+          RELEASE_TAG: ${{ needs.check.outputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
-          tag="$(git describe --tags --exact-match)"
-          [[ "${tag}" == v* ]]
-          version="${tag#v}"
-          build_version="$(sed -n "s/^version = '\([^']*\)'/\1/p" build.gradle)"
-          test "${version}" = "${build_version}"
-          test -f "docs/releases/${version}.md"
-          source_files="$(find src -type f | wc -l | tr -d ' ')"
-          java_files="$(find src -type f -name '*.java' | wc -l | tr -d ' ')"
-          echo "RELEASE_TAG=${tag}" >> "${GITHUB_ENV}"
-          echo "RELEASE_VERSION=${version}" >> "${GITHUB_ENV}"
+          case "$RELEASE_TAG" in
+            mc1.20.1-forge-v*)
+              project='ports/1.20.1'
+              version="${RELEASE_TAG#mc1.20.1-forge-v}"
+              prefix="slashblade-legacy-compat-forge-1.20.1-$version"
+              libdir="$project/build/forge/libs"
+              notes="docs/releases/mc1.20.1-forge-$version.md"
+              ;;
+            v*)
+              project='.'
+              version="${RELEASE_TAG#v}"
+              prefix="SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-$version"
+              libdir='build/libs'
+              notes="docs/releases/$version.md"
+              ;;
+            *) echo 'Unsupported release tag.' >&2; exit 1 ;;
+          esac
+          build_version="$(sed -n "s/^version = '\([^']*\)'/\1/p" "$project/build.gradle")"
+          test "$version" = "$build_version"
+          test -f "$notes"
+          printf '%s\n' "PROJECT=$project" "VERSION=$version" "PREFIX=$prefix" "LIBDIR=$libdir" "NOTES=$notes" "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
+      - name: Prepare Forge dependency
+        if: env.PROJECT == 'ports/1.20.1'
+        shell: pwsh
+        run: ./ports/1.20.1/prepare-dependencies.ps1
+      - name: Build
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PROJECT"
+          chmod +x ./gradlew
+          if [[ "$PROJECT" == '.' ]]; then
+            ./gradlew --no-daemon build runContracts --max-workers=2
+          else
+            ./gradlew --no-daemon build contractsProbeJar persistenceProbeJar -Ploader=forge --max-workers=2
+          fi
+      - name: Prepare release files
+        shell: bash
+        run: |
+          set -euo pipefail
           out='build/public-release'
-          mkdir -p "${out}"
-          runtime="SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-${version}.jar"
-          sources="SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-${version}-sources.jar"
-          source_zip="SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-${version}-source.zip"
-          manifest="SEAC-SlashBlade-Old-Dream-Reforged-${version}-release-manifest.json"
-          checksums="SEAC-SlashBlade-Old-Dream-Reforged-${version}-SHA256SUMS.txt"
-          cp "build/libs/${runtime}" "${out}/${runtime}"
-          cp "build/libs/${sources}" "${out}/${sources}"
-          jar tf "${out}/${runtime}" > "${RUNNER_TEMP}/seac-slashblade-runtime-entries.txt"
-          if grep -q '^org/scex/slashbladelegacy/contracts/' "${RUNNER_TEMP}/seac-slashblade-runtime-entries.txt"; then
-            echo 'Development contract harness leaked into the runtime JAR.' >&2
+          mkdir -p "$out"
+          cp "$LIBDIR/$PREFIX.jar" "$LIBDIR/$PREFIX-sources.jar" "$out/"
+          jar tf "$out/$PREFIX.jar" > "$RUNNER_TEMP/runtime-entries.txt"
+          if grep -q '^org/scex/slashbladelegacy/contracts/' "$RUNNER_TEMP/runtime-entries.txt"; then
+            echo 'Contract probe classes leaked into the player JAR.' >&2
             exit 1
           fi
-          git archive --format=zip --prefix="seac-slashblade-old-dream-reforged-${version}/" --output="${out}/${source_zip}" HEAD
-          runtime_sha="$(sha256sum "${out}/${runtime}" | cut -d' ' -f1)"
-          sources_sha="$(sha256sum "${out}/${sources}" | cut -d' ' -f1)"
-          source_sha="$(sha256sum "${out}/${source_zip}" | cut -d' ' -f1)"
-          jq -n \
-            --arg name 'SEAC拔刀剑附属 旧梦重铸' \
-            --arg version "${version}" \
-            --arg runtime_sha "${runtime_sha}" \
-            --arg sources_sha "${sources_sha}" \
-            --arg source_sha "${source_sha}" \
-            --arg commit "$(git rev-parse HEAD)" \
-            --argjson source_files "${source_files}" \
-            --argjson java_files "${java_files}" \
-            '{name:$name,version:$version,status:"development prerelease; not production accepted",modId:"slashblade_legacy_compat",minecraft:"1.21.1",neoforge:"21.1.248",java:"21",slashblade:{version:"2.0.5-1.21.1",modrinthVersionId:"cw0UX6eX",sha256:"5b60ff41d89d63e34fbae3d20d9663ae96aa4c594a10b9889a4a39905d44d1c4"},sourceFiles:$source_files,javaFiles:$java_files,commit:$commit,validation:{publicBuild:true,minimalRuntimeContracts:true,priorLockedFullModContracts:false,targetedDevelopmentClient:false,interactiveClient:false,production:false},sha256:{runtime:$runtime_sha,sourcesJar:$sources_sha,sourceZip:$source_sha},aiAssisted:true}' \
-            > "${out}/${manifest}"
-          (cd "${out}" && sha256sum "${runtime}" "${sources}" "${source_zip}" "${manifest}" > "${checksums}")
-      - name: Preserve release bundle
-        uses: actions/upload-artifact@v6
+          git archive --format=zip --prefix="$PREFIX-source/" --output="$out/$PREFIX-source.zip" HEAD
+          jq -n --arg tag "$RELEASE_TAG" --arg version "$VERSION" --arg project "$PROJECT" --arg commit "$(git rev-parse HEAD)" --arg runtime "$(sha256sum "$out/$PREFIX.jar" | cut -d' ' -f1)" --arg sources "$(sha256sum "$out/$PREFIX-sources.jar" | cut -d' ' -f1)" --arg sourceZip "$(sha256sum "$out/$PREFIX-source.zip" | cut -d' ' -f1)" '{tag:$tag,version:$version,sourceProject:$project,sourceCommit:$commit,publishedRuntimeSha256:$runtime,sourcesJarSha256:$sources,sourceZipSha256:$sourceZip,validation:{build:true,rootIntegrationContracts:($project=="."),interactiveClient:false,production:false}}' > "$out/release-manifest.json"
+          (cd "$out" && sha256sum "$PREFIX.jar" "$PREFIX-sources.jar" "$PREFIX-source.zip" release-manifest.json > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v6
         with:
-          name: seac-slashblade-old-dream-reforged-${{ env.RELEASE_VERSION }}-release
+          name: release-${{ env.RELEASE_TAG }}
           path: build/public-release/*
           if-no-files-found: error
-      - name: Publish GitHub prerelease
+      - name: Publish prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
-        run: |
-          set -euo pipefail
-          notes="docs/releases/${RELEASE_VERSION}.md"
-          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
-            echo "Release already exists; published assets are immutable."
-            exit 0
-          else
-            gh release create "${RELEASE_TAG}" build/public-release/* --prerelease --title "SEAC拔刀剑附属 旧梦重铸 ${RELEASE_VERSION}" --notes-file "${notes}"
-          fi
+        run: gh release create "$RELEASE_TAG" build/public-release/* --verify-tag --prerelease --title "旧梦重铸 $RELEASE_TAG" --notes-file "$NOTES"

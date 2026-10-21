@@ -17,7 +17,7 @@ import net.neoforged.neoforge.common.ModConfigSpec;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.ItemAttributeModifierEvent;
 
-/** Compatibility registration and narrowly scoped attack/reach corrections. */
+/** 注册兼容功能，修正攻击与触及距离。 */
 @Mod(LegacyCompat.MOD_ID)
 public final class LegacyCompat {
     public static final String MOD_ID = "slashblade_legacy_compat";
@@ -56,19 +56,19 @@ public final class LegacyCompat {
                 "Consume one plain soul per feed, even in creative; tiny/fragment/ingot/sphere/crystal/trapezohedron grant 100/200/400/400/500/500 souls.").define("enableDirectSoulFeeding",true);
         SPEC = builder.build();
     }
-    /** Item/search callbacks also run between worlds, after SERVER config has been unloaded. */
+    /** 离开世界后仍可能触发物品或搜索回调。此时 SERVER 配置已卸载。 */
     public static boolean isEnabled(ModConfigSpec.BooleanValue option) {
         if (!SPEC.isLoaded()) return false;
         try {
             return option.get();
         } catch (IllegalStateException unavailable) {
-            // Unload may race a client callback. Never hide an error while the config is loaded.
+            // 配置可能在客户端回调期间卸载。配置仍加载时继续抛出错误。
             if (!SPEC.isLoaded()) return false;
             throw unavailable;
         }
     }
     public LegacyCompat(net.neoforged.bus.api.IEventBus modBus, ModContainer container) {
-        // SERVER configs synchronize to clients. Restart/re-equip after changing this development config.
+        // SERVER 配置同步到客户端。修改后重启并重新装备物品。
         container.registerConfig(ModConfig.Type.SERVER, SPEC);
         modBus.addListener(LegacyAvoidPayload::register);
         modBus.addListener(LegacyModePayload::register);
@@ -78,11 +78,15 @@ public final class LegacyCompat {
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST, LegacyCompat::validateMelee);
         SummonedBladeMode.ENTITIES.register(modBus);
         LegacyArts.initialize();
+        LegacyNamedBlades.initialize();
         LegacyCombat.COMBOS.register(modBus);
         LegacyArts.ARTS.register(modBus);
+        LegacyNamedBlades.ARTS.register(modBus);
+        LegacyNamedBlades.EFFECTS.register(modBus);
         NeoForge.EVENT_BUS.addListener(EventPriority.LOW, LegacyCombat::nextCombo);
         NeoForge.EVENT_BUS.addListener(LegacyCombat::tick);
         NeoForge.EVENT_BUS.addListener(LegacyAirControl::tick);
+        NeoForge.EVENT_BUS.addListener(LegacyLockOn::tick);
         NeoForge.EVENT_BUS.addListener(LegacyFireResistance::tick);
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) -> {LegacyJustGuard.clear(event.getEntity());LegacyRangeAttack.clear(event.getEntity());});
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) -> LegacyRank.synchronize(event.getEntity()));
@@ -101,17 +105,26 @@ public final class LegacyCompat {
         NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, LegacySoulFeeding::fallback);
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, SummonedBladeMode::input);
         NeoForge.EVENT_BUS.addListener(SummonedBladeMode::tooltip);
+        NeoForge.EVENT_BUS.addListener(LegacyDamageTooltip::tooltip);
+        NeoForge.EVENT_BUS.addListener(LegacyBladeStandInteraction::block);
+        NeoForge.EVENT_BUS.addListener(LegacyBladeStandInteraction::entity);
+        NeoForge.EVENT_BUS.addListener(LegacyManaBridge::playerTick);
+        NeoForge.EVENT_BUS.addListener(LegacyManaBridge::entityTick);
+        NeoForge.EVENT_BUS.addListener(LegacyZephyr::use);
+        NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST,LegacyZephyr::hit);
+        NeoForge.EVENT_BUS.addListener(EventPriority.HIGH,LegacyNamedBlades::copyEffectPolicy);
     }
     private static void validateMelee(net.neoforged.neoforge.event.entity.player.AttackEntityEvent event) {
         var player = event.getEntity();
+        // 重锋模式使用原生范围判定，允许命中方块后的目标。
+        if(!LegacyMode.legacy(player))return;
         var stack = player.getMainHandItem();
-        // This flag is set by AttackManager around actual combo damage, not input collection.
+        // AttackManager 在结算连段伤害时设置此标记。
         if (!(stack.getItem() instanceof ItemSlashBlade)
                 || !BladeStateAccess.of(stack).map(s -> s.onClick()).orElse(false)) return;
         var target = event.getTarget();
-        // Only a synchronous, exact target/bounds match may use the old area rule.
-        // External modern melee calls still receive their original range/LOS validation.
-        if (org.scex.slashbladelegacy.LegacyMode.legacy(player) && LegacyDamage.scoped(player, target, stack)) return;
+        // 当前伤害上下文匹配目标和范围时，使用旧版区域规则。
+        if (LegacyDamage.scoped(player, target, stack)) return;
         double reach = mods.flammpfeil.slashblade.util.TargetSelector.getResolvedReach(player);
         if (!Double.isFinite(reach) || reach <= 0 || !player.hasLineOfSight(target)
                 || mods.flammpfeil.slashblade.util.TargetSelector.distanceSqrBetweenEntity(target,player) >= reach*reach)
@@ -126,8 +139,8 @@ public final class LegacyCompat {
         }
         if (!org.scex.slashbladelegacy.LegacyMode.enabled(event.getBlade(),BROKEN_DAMAGE) || !(event.getBlade().getItem() instanceof ItemSlashBlade)
                 || !event.getSlashBladeState().isBroken()) return;
-        // Exact current formula gate; leave overrides from other mods untouched.
-        // Old updateAttackAmplifier: (2 - base) + base = +2, i.e. player total 3.
+        // 仅替换重锋的默认公式结果，保留其他模组的覆盖值。
+        // 旧 updateAttackAmplifier：(2 - base) + base = +2，玩家总伤害为 3。
         if (Double.compare(event.getOriginDamage(), -1.5) == 0
                 && Double.compare(event.getNewDamage(), event.getOriginDamage()) == 0) {
             event.setNewDamage(2.0);

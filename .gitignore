@@ -7,3 +7,7 @@ research/
 artifacts/
 .idea/
 *.iml
+reports/
+tools/
+dist/
+evidence/

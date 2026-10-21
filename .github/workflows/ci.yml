@@ -10,42 +10,69 @@ permissions:
   contents: read
 
 jobs:
-  build-and-contracts:
+  build:
+    name: ${{ matrix.target }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: minecraft-1.21.1-neoforge
+            project: .
+            artifacts: build/libs/SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-*.jar
+          - target: minecraft-1.20.1-forge
+            project: ports/1.20.1
+            artifacts: ports/1.20.1/build/forge/libs/slashblade-legacy-compat-forge-1.20.1-*.jar
     steps:
       - uses: actions/checkout@v6
-      - name: Set up JDK 21
+      - name: Set up Java toolchains
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: |
+            17
+            21
           cache: gradle
-      - name: Make Gradle wrapper executable
-        run: chmod +x ./gradlew
       - name: Audit public source
         shell: pwsh
         run: ./scripts/verify-public-source.ps1
-      - name: Build and run isolated contracts
-        run: ./gradlew --no-daemon clean build runContracts
-      - name: Verify runtime identity and source-set boundary
+      - name: Prepare Forge dependency
+        if: matrix.project == 'ports/1.20.1'
+        shell: pwsh
+        run: ./ports/1.20.1/prepare-dependencies.ps1
+      - name: Build and check
+        working-directory: ${{ matrix.project }}
         shell: bash
         run: |
           set -euo pipefail
-          runtime='build/libs/SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-0.3.0-dev.4.jar'
-          sources='build/libs/SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-0.3.0-dev.4-sources.jar'
-          test -f "${runtime}"
-          jar --validate --file "${runtime}"
-          jar --validate --file "${sources}"
-          jar tf "${runtime}" > "${RUNNER_TEMP}/seac-slashblade-runtime-entries.txt"
-          if grep -q '^org/scex/slashbladelegacy/contracts/' "${RUNNER_TEMP}/seac-slashblade-runtime-entries.txt"; then
-            echo 'Development contract harness leaked into the runtime JAR.' >&2
+          chmod +x ./gradlew
+          if [[ '${{ matrix.project }}' == '.' ]]; then
+            ./gradlew --no-daemon build runContracts --max-workers=2
+          else
+            ./gradlew --no-daemon build contractsProbeJar persistenceProbeJar -Ploader=forge --max-workers=2
+          fi
+      - name: Verify player JAR excludes probes
+        shell: bash
+        run: |
+          set -euo pipefail
+          project='${{ matrix.project }}'
+          version="$(sed -n "s/^version = '\([^']*\)'/\1/p" "$project/build.gradle")"
+          if [[ "$project" == '.' ]]; then
+            runtime="build/libs/SEAC-SlashBlade-Old-Dream-Reforged-1.21.1-$version.jar"
+          else
+            runtime="$project/build/forge/libs/slashblade-legacy-compat-forge-1.20.1-$version.jar"
+          fi
+          test -f "$runtime"
+          jar --validate --file "$runtime"
+          jar tf "$runtime" > "$RUNNER_TEMP/runtime-entries.txt"
+          if grep -q '^org/scex/slashbladelegacy/contracts/' "$RUNNER_TEMP/runtime-entries.txt"; then
+            echo 'Contract probe classes leaked into the player JAR.' >&2
             exit 1
           fi
-          unzip -p "${runtime}" META-INF/neoforge.mods.toml | grep -F 'displayName="SEAC拔刀剑附属 旧梦重铸"'
-      - name: Upload build artifacts
+      - name: Preserve build artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: seac-slashblade-old-dream-reforged-${{ github.sha }}
-          path: build/libs/*.jar
+          name: ${{ matrix.target }}-${{ github.sha }}
+          path: ${{ matrix.artifacts }}
           if-no-files-found: error

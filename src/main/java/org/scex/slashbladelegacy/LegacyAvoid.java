@@ -15,8 +15,8 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 /** r87 AvoidAction: V down with a direction, on the ground or in the air. */
 public final class LegacyAvoid {
-    // Added upstream after 2.0.5. Honor its cancellation when present without
-    // making the user's soft SlashBlade dependency require that newer release.
+    // SprintMoveEvent was added after 2.0.5. Honor its cancellation when present.
+    // Keep support for SlashBlade versions without this event.
     private static final java.lang.reflect.Constructor<?> SPRINT_EVENT=findSprintEvent();
     private LegacyAvoid() {}
     private static java.lang.reflect.Constructor<?> findSprintEvent(){
@@ -54,13 +54,13 @@ public final class LegacyAvoid {
         float sin=Mth.sin(player.getYRot()*Mth.DEG_TO_RAD),cos=Mth.cos(player.getYRot()*Mth.DEG_TO_RAD);
         var impulse=new Vec3(input.x*cos-input.z*sin,0,input.z*cos+input.x*sin);
         data.putLong("SB.AvoidTimeout",now+2);data.putLong("SB.AvoidComboTimeout",now+10);data.putInt("SB.AvoidCombo",count+1);
-        // A dodge immediately after native TrickUp must also retire its pending
-        // position rollback; otherwise that earlier move erases this new travel.
+        // Clear the pending TrickUp position rollback before applying this dodge.
+        // Otherwise, TrickUp can undo the dodge.
         data.remove(SlayerStyleArts.AVOID_COUNTER_PATH);data.remove(SlayerStyleArts.AVOID_VEC_PATH);
         player.setDeltaMovement(player.getDeltaMovement().add(impulse));
-        // Send only the accepted horizontal increment. Replacing the client's full
-        // velocity with a stale server velocity loses falling/rising motion, while
-        // move()+native avoid counters teleport the player back two ticks later.
+        // Send the accepted horizontal increment.
+        // A full server velocity can replace the client's current vertical motion.
+        // Native avoid counters can roll back move() after two ticks.
         PacketDistributor.sendToPlayer(player,new LegacyAvoidPayload(impulse.x,impulse.z));
         Untouchable.setUntouchable(player,3);
         player.playNotifySound(SoundEvents.FIRE_EXTINGUISH,SoundSource.PLAYERS,.3f,10f);

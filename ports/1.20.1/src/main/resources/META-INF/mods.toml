@@ -1,0 +1,33 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+[[mods]]
+modId="slashblade_legacy_compat"
+version="${mod_version}"
+displayName="SCEX SlashBlade Legacy Compatibility"
+logoFile="cover.png"
+logoBlur=false
+authors="SCEX contributors; AI assistance: OpenAI Codex"
+description='''Independent legacy behavior compatibility for SlashBlade: Resharpened. Development candidate, not production accepted.'''
+[[dependencies.slashblade_legacy_compat]]
+modId="minecraft"
+mandatory=true
+# This module uses the Minecraft 1.20.1 API.
+versionRange="[1.20.1]"
+ordering="NONE"
+side="BOTH"
+[[dependencies.slashblade_legacy_compat]]
+modId="forge"
+mandatory=true
+# The build patch does not set the minimum runtime patch.
+versionRange="[47,)"
+ordering="NONE"
+side="BOTH"
+[[dependencies.slashblade_legacy_compat]]
+modId="slashblade"
+mandatory=true
+# Version 1.1.22 adds the Piercing art used by this module.
+# dependencies.sha256.json records the exact build and test inputs.
+versionRange="[1.1.22,)"
+ordering="AFTER"
+side="BOTH"

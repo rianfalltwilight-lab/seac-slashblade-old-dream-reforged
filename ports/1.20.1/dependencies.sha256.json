@@ -1,0 +1,22 @@
+[
+  {
+    "file": "SlashBladeResharped-1.20.1-1.9.65.jar",
+    "size": 3852898,
+    "sha256": "2a6eb8d2ead295cb3838b551b9f3cf0e81de97966dbc91b84cf2c7589f3a4361",
+    "official_file_page": "https://www.curseforge.com/minecraft/mc-mods/slashblade-resharped/files/8090912",
+    "download_url": "https://edge.forgecdn.net/files/8090/912/SlashBladeResharped-1.20.1-1.9.65.jar",
+    "source": {
+      "repository": "https://github.com/0999312/SlashBlade_Resharped",
+      "commit": "6e2a0a092fb794d7ea56fd83452869674f3ab1c7",
+      "size": 3638749,
+      "sha256": "22108d506d52e18cdda949b4e22400de794868945fa652029adef1fe6285fc2d"
+    },
+    "build_reference": {
+      "repository": "https://github.com/NeoForged/MDK/tree/1.20.1-legacy",
+      "commit": "cba0981a47ce9756f4cbbc932484ff9f9dffe140",
+      "size": 63516,
+      "sha256": "e0833059b9656cdea971000835f38834da4d38c22568075e09579be8706f4918",
+      "note": "Maven 47.1.106 mdk.zip is absent (404). This official template uses legacyforge; select NeoForge via enable.neoForgeVersion."
+    }
+  }
+]

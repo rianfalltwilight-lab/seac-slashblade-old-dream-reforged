@@ -16,8 +16,9 @@ public final class LegacyAirControl {
         if(state==null)return;
         int level=blade.getEnchantmentLevel(player.registryAccess().holderOrThrow(Enchantments.FEATHER_FALLING));
         if(level<=0)return;
-        // The old HelmBreaker moved downward explicitly. The modern client applies its
-        // synchronized velocity through travel, so do not erase that descent before travel.
+        // The old HelmBreaker moved the player downward.
+        // The modern client applies synchronized velocity in travel().
+        // Preserve that downward velocity until travel().
         if(LegacyCombat.move(state.resolvCurrentComboState(player))==LegacyMove.HELM_BRAKER)return;
         var velocity=player.getDeltaMovement();double y=velocity.y;
         if(player.swinging && !player.onGround() && y<0)y=0;

@@ -1,0 +1,46 @@
+package org.scex.slashbladelegacy.mixin;
+
+import java.util.function.Consumer;
+import org.scex.slashbladelegacy.BladeStateAccess;
+import mods.flammpfeil.slashblade.event.SlashBladeEvent;
+import mods.flammpfeil.slashblade.item.ItemSlashBlade;
+import net.minecraft.advancements.CriteriaTriggers;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.stats.Stats;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.*;
+import net.minecraftforge.common.MinecraftForge;
+import org.scex.slashbladelegacy.*;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.*;
+import org.spongepowered.asm.mixin.injection.callback.*;
+
+/** r87 breaks after exceeding maximum damage, preserving the framework's public break callback. */
+@Mixin(value=ItemSlashBlade.class,remap=false)
+public abstract class LegacyDamageBoundaryMixin {
+    private static boolean applies(ItemStack blade){return org.scex.slashbladelegacy.LegacyMode.legacy(blade) && !blade.is(LegacyDurability.FRAMEWORK_BOUNDARY);}
+    @Inject(method="setDamage",at=@At("HEAD"),cancellable=true)
+    private void legacyCompat$setDamage(ItemStack blade,int damage,CallbackInfo ci) {
+        if(!applies(blade))return;
+        var state=BladeStateAccess.of(blade).orElseThrow();
+        if(damage<=0 && !state.isSealed())state.setBroken(false);
+        state.setDamage(net.minecraft.util.Mth.clamp(damage,0,Math.max(0,blade.getMaxDamage())));ci.cancel();
+    }
+    @Inject(method="damageItem",at=@At("HEAD"),cancellable=true)
+    private void legacyCompat$break(ItemStack blade,int amount,LivingEntity entity,Consumer<LivingEntity> onBroken,CallbackInfoReturnable<Integer> cir) {
+        if(!applies(blade))return;
+        cir.setReturnValue(0);
+        // Direct callers can bypass the ItemStack durability check.
+        if(blade.hasTag() && blade.getTag().getBoolean("Unbreakable"))return;
+        int maximum=blade.getMaxDamage();if(maximum<=0 || amount<=0)return;
+        var state=BladeStateAccess.of(blade).orElseThrow();
+        if((long)blade.getDamageValue()+amount<=maximum){cir.setReturnValue(amount);return;}
+        blade.setDamageValue(maximum);
+        if(state.isBroken() || BladeEvents.breaking(blade,state))return;
+        state.setBroken(true);onBroken.accept(entity);
+        if(entity instanceof ServerPlayer player)CriteriaTriggers.CONSUME_ITEM.trigger(player,blade);
+        if(entity instanceof Player player)player.awardStat(Stats.ITEM_BROKEN.get(blade.getItem()));
+        if(((ItemSlashBlade)(Object)this).isDestructable(blade))blade.shrink(1);
+    }
+}

@@ -23,7 +23,7 @@ final class Drive17Contracts {
         blade.set(DataComponents.CUSTOM_NAME,Component.literal("r87 Drive contract"));blade.setDamageValue(1);
         player.setItemInHand(InteractionHand.MAIN_HAND,blade);player.setPos(-8,160,-8);player.setYRot(0);player.setXRot(0);player.removeAllEffects();
         var rank=player.getData(CapabilityConcentrationRank.RANK_POINT);rank.setRawRankPoint(0);rank.setLastUpdte(player.level().getGameTime());
-        for(var key:new ArrayList<>(player.getPersistentData().getAllKeys()))if(key.startsWith("slashblade_legacy_compat.rank_cd."))player.getPersistentData().remove(key);
+        org.scex.slashbladelegacy.LegacyRank.clearCooldowns(player);
         var target=EntityType.ALLAY.create(player.level());target.setPos(-8,160,-8);player.serverLevel().addFreshEntity(target);
         var created=new ArrayList<LegacyDrive>();
         try {

@@ -20,14 +20,15 @@ import net.minecraft.world.phys.*;
 import net.minecraft.sounds.*;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
-/** r87 numeric arts, with stable aliases for installed core SA identities and public perform events. */
+/** Register r87 arts. Keep saved SA aliases and public perform events. */
 public final class LegacyArts {
     public enum Art {
         DIMENSION("slash_dimension",LegacyMove.SLASH_DIM,20,10), DRIVE("drive",LegacyMove.KIRIAGE,10,5),
         WAVE("wave_edge",LegacyMove.KIRIAGE,20,10), QUICK("quick_drive",LegacyMove.IAI,10,5),
         SPEAR("spear",LegacyMove.HIRA_TUKI,20,10), CIRCLE("circle_slash",LegacyMove.BATTOU,20,10),
         WITHER("wither_swords",LegacyMove.KIRIOROSI,40,10), SAKURA("sakura_end",LegacyMove.SLASH_EDGE,20,10),
-        MAXIMUM("maximum_bet",LegacyMove.SLASH_EDGE,20,10);
+        MAXIMUM("maximum_bet",LegacyMove.SLASH_EDGE,20,10),
+        DIMENSION_SPIRAL("slash_dimension_spiral",LegacyMove.SLASH_DIM,20,10);
         public final String key;public final LegacyMove pose;public final int souls,wear;
         Art(String key,LegacyMove pose,int souls,int wear){this.key=key;this.pose=pose;this.souls=souls;this.wear=wear;}
     }
@@ -37,7 +38,8 @@ public final class LegacyArts {
     static {
         for(var art:Art.values()) {
             register(art,SlashArts.ArtsType.Success,art.pose,false);
-            if(art==Art.DIMENSION){register(art,SlashArts.ArtsType.Jackpot,art.pose,false);register(art,SlashArts.ArtsType.Super,art.pose,false);register(art,SlashArts.ArtsType.Super,LegacyMove.BATTOU,true);}
+            if(art==Art.DIMENSION || art==Art.DIMENSION_SPIRAL)register(art,SlashArts.ArtsType.Jackpot,art.pose,false);
+            if(art==Art.DIMENSION){register(art,SlashArts.ArtsType.Super,art.pose,false);register(art,SlashArts.ArtsType.Super,LegacyMove.BATTOU,true);}
             if(art==Art.SAKURA || art==Art.MAXIMUM)register(art,SlashArts.ArtsType.Success,LegacyMove.RETURN_EDGE,true);
             ARTS.register(art.key,()->new SlashArts(user->combo(art,SlashArts.ArtsType.Success,false))
                     .setComboStateJust(user->combo(art,SlashArts.ArtsType.Jackpot,false))
@@ -48,7 +50,7 @@ public final class LegacyArts {
     public static void initialize(){}
     public static ResourceLocation key(Art art){return ResourceLocation.fromNamespaceAndPath(LegacyCompat.MOD_ID,art.key);}
     private static ResourceLocation combo(Art art,SlashArts.ArtsType type,boolean recovery) {
-        if(art!=Art.DIMENSION)type=SlashArts.ArtsType.Success;
+        if(art!=Art.DIMENSION && art!=Art.DIMENSION_SPIRAL)type=SlashArts.ArtsType.Success;
         return ResourceLocation.fromNamespaceAndPath(LegacyCompat.MOD_ID,"sa_"+art.key+"_"+type.name().toLowerCase(Locale.ROOT)+(recovery?"_end":""));
     }
     private static void register(Art art,SlashArts.ArtsType type,LegacyMove pose,boolean recovery) {
@@ -65,7 +67,7 @@ public final class LegacyArts {
         if(key.getNamespace().equals(LegacyCompat.MOD_ID))for(var art:Art.values())if(key.getPath().equals(art.key))return art;
         if(!key.getNamespace().equals("slashblade"))return null;
         return switch(key.getPath()) {
-            // r87 unknown base IDs use its default SlashDimension. Preserve modern void_slash's saved identity.
+            // Map the core dimension aliases without changing their saved identity.
             case "judgement_cut","void_slash"->Art.DIMENSION;
             case "drive_vertical"->Art.DRIVE;case "drive_horizontal"->Art.QUICK;case "wave_edge"->Art.WAVE;
             case "piercing"->Art.SPEAR;case "circle_slash"->Art.CIRCLE;case "sakura_end"->Art.SAKURA;default->null;
@@ -75,7 +77,7 @@ public final class LegacyArts {
         if(!(user instanceof Player))return null;
         var key=SlashArts.getRegistryKey(arts);var art=resolve(key);
         if(!LegacyMode.legacy(user)) {
-            // Saved legacy SA aliases remain stable. Use native equivalents without rewriting blade data.
+            // In modern mode, resolve saved legacy aliases to native arts. Keep blade data unchanged.
             if(art==null || key==null || !key.getNamespace().equals(LegacyCompat.MOD_ID))return null;
             var nativeArt=switch(art) {
                 case DRIVE->mods.flammpfeil.slashblade.registry.SlashArtsRegistry.DRIVE_VERTICAL.get();
@@ -91,8 +93,7 @@ public final class LegacyArts {
         }
         if(type==SlashArts.ArtsType.Super) {
             if(art!=null)return combo(Art.DIMENSION,type,false);
-            // Old ISuperSpecialAttack implementations may supply their own Super. Otherwise
-            // the framework's default (or no Super) falls back to r87 SlashDimension.
+            // Keep an addon's own Super art. Map an empty or default Super to r87 SlashDimension.
             var selected=arts.getComboStateSuper().apply(user);
             if(selected==null || selected.equals(ComboStateRegistry.NONE.getId()) || selected.equals(ComboStateRegistry.JUDGEMENT_CUT_END.getId()))return combo(Art.DIMENSION,type,false);
             return selected;
@@ -106,8 +107,8 @@ public final class LegacyArts {
         if(level.isClientSide || !LegacyDamage.holding(player,blade) || state.isBroken() || state.isSealed() || !SwordType.from(blade).contains(SwordType.ENCHANTED))return true;
         var result=state.doChargeAction(player,blade.getUseDuration(user)-timeLeft);
         if(result!=null && !result.equals(ComboStateRegistry.NONE.getId())) {
-            // Core legacy combos pay in their click action, after PerformSlashArtEvent acceptance.
-            // A foreign event redirect retains the original framework's post-action cost convention.
+            // Core combos pay after PerformSlashArtEvent accepts the action.
+            // If an addon replaces the combo, charge its cost after the action.
             if(!PLANS.containsKey(result) && LegacyDamage.holding(player,blade) && !player.isCreative())pay(player,blade,state.getSlashArts().getProudSoulCost(),1);
             player.swing(InteractionHand.MAIN_HAND);
         }
@@ -130,6 +131,17 @@ public final class LegacyArts {
     public static LegacyDrive drive(Player player,ItemStack blade,float damage,float speed,float roll,boolean multi,int life) {
         var entity=new LegacyDrive(SummonedBladeMode.DRIVE.get(),player.level());entity.initialize(player,blade,damage,speed,roll,multi);entity.setLifetime(life);player.level().addFreshEntity(entity);return entity;
     }
+    /** Emit one horizontal AquaEdge. Accelerate the wave and allow repeated hits. */
+    public static LegacyDrive water(Player player,ItemStack blade) {
+        sound(player,SoundEvents.PLAYER_SWIM,1,1.5f);
+        player.extinguishFire();
+        var entity=drive(player,blade,driveDamage(player,blade),1.5f,90,true,10);
+        entity.setWater(true);entity.setColor(0x0000FF);
+        entity.setPos(entity.position().add(entity.getDeltaMovement()));
+        if(player.level() instanceof net.minecraft.server.level.ServerLevel server)
+            server.sendParticles(net.minecraft.core.particles.ParticleTypes.SPLASH,player.getX(),player.getY(),player.getZ(),30,1,.25,1,.1);
+        return entity;
+    }
     public static void melee(Player player,ItemStack blade,AABB area,LegacyMove pose,String action,float award,boolean crit) {
         for(var target:LegacyTargets.within(player,area)) {
             if(!LegacyDamage.holding(player,blade))return;
@@ -145,7 +157,7 @@ public final class LegacyArts {
             LegacyArtEntity.spawn(player,blade,LegacyArtEntity.Mode.JUDGEMENT,player.position(),30,0,false);
             mods.flammpfeil.slashblade.ability.Untouchable.setUntouchable(player,30);return;
         }
-        var target=art==Art.DIMENSION || art==Art.WITHER?findTarget(player,blade):null;
+        var target=art==Art.DIMENSION || art==Art.DIMENSION_SPIRAL || art==Art.WITHER?findTarget(player,blade):null;
         if(art==Art.WITHER && target==null)return;
         if(!pay(player,blade,art.souls,art.wear))return;
         switch(art) {
@@ -154,7 +166,7 @@ public final class LegacyArts {
             case CIRCLE->{sound(player,SoundEvents.BLAZE_HURT,.2f,.6f);melee(player,blade,player.getBoundingBox().inflate(5,.25,5),art.pose,"CircleSlash",.3f,true);if(!LegacyDamage.holding(player,blade))return;float damage=waveDamage(player,blade);for(int i=0;i<6;i++){var entity=drive(player,blade,damage,.5f,90,true,10);entity.setVector(player.getYRot()+60*i,0,.5f);}}
             case SPEAR->{var velocity=Vec3.directionFromRotation(0,player.getYRot()).scale(player.onGround()?3.5:3.5*.35);player.setDeltaMovement(velocity.x,player.getDeltaMovement().y,velocity.z);syncMotion(player);player.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST,10,0));sound(player,SoundEvents.GENERIC_EXPLODE,1,1);LegacyArtEntity.spawn(player,blade,LegacyArtEntity.Mode.SPEAR,player.position(),7,0,false);}
             case SAKURA,MAXIMUM->LegacyArtEntity.spawn(player,blade,art==Art.SAKURA?LegacyArtEntity.Mode.SAKURA:LegacyArtEntity.Mode.MAXIMUM,player.position(),5,0,false);
-            case DIMENSION->dimension(player,blade,target,plan.type==SlashArts.ArtsType.Jackpot);
+            case DIMENSION,DIMENSION_SPIRAL->dimension(player,blade,target,plan.type==SlashArts.ArtsType.Jackpot,art==Art.DIMENSION_SPIRAL);
             case WITHER->{
                 if(LegacyDamage.hit(player,target,LegacyMove.SLASH_DIM,target.getBoundingBox(),true,1,"PhantomSword",.2f)){player.crit(target);target.setDeltaMovement(Vec3.ZERO);target.hurtTime=0;target.invulnerableTime=0;mods.flammpfeil.slashblade.ability.StunManager.setStun(target);}
                 if(!LegacyDamage.holding(player,blade))return;
@@ -175,7 +187,7 @@ public final class LegacyArts {
         }
         return null;
     }
-    private static void dimension(Player player,ItemStack blade,LivingEntity target,boolean just) {
+    private static void dimension(Player player,ItemStack blade,LivingEntity target,boolean just,boolean spiral) {
         sound(player,SoundEvents.ENDERMAN_TELEPORT,.5f,1);var state=BladeStateAccess.of(blade).orElseThrow();
         Vec3 center;
         if(target==null) {
@@ -190,9 +202,25 @@ public final class LegacyArts {
         float power=power(player,blade)/5f;
         float damage=(target==null || just?1:.5f)+state.getAttackAmplifier()*(target==null?.5f+power:power);
         LegacyArtEntity.spawn(player,blade,LegacyArtEntity.Mode.DIMENSION,center,10,damage,target==null || just);
-        if(just && (target==null || power>0)) {
+        if(spiral) {
+            Vec3 origin=(target==null?center:target.position()).add(0,-.5,0);
+            spiral(player,blade,origin,damage,just);
+        }else if(just && (target==null || power>0)) {
             Vec3 driveCenter=target==null?center:target.position().add(0,target.getEyeHeight()/2,0);
             spread(player,blade,driveCenter,target==null?0:target.getYRot(),Math.min(1,(1+state.getAttackAmplifier()*power)/3));
+        }
+    }
+    private static void spiral(Player player,ItemStack blade,Vec3 center,float damage,boolean just) {
+        int count=5+LegacyCombat.rank(player);
+        float baseYaw=player.getRandom().nextFloat()*180;
+        for(int ring=0;ring<(just?2:1);ring++,baseYaw+=120)for(int i=0;i<count;i++) {
+            float angle=360f*i/count,yaw=angle+baseYaw;
+            float pitch=(float)(-30*Math.cos(Math.toRadians(angle-60)));
+            float roll=(float)(90-30*Math.cos(Math.toRadians(angle+30)));
+            var entity=drive(player,blade,damage,.3f,roll,false,15);
+            entity.setVector(yaw,pitch,.3f);
+            entity.setPos(center.add(-Math.cos(Math.toRadians(yaw)),-.7*Math.sin(Math.toRadians(angle-60)),-Math.sin(Math.toRadians(yaw))));
+            entity.setDimension(just);
         }
     }
     public static void spread(Player player,ItemStack blade,Vec3 center,float baseYaw,float damage) {
@@ -208,7 +236,7 @@ public final class LegacyArts {
         if(LegacyDamage.holding(player,blade))recovery(player,Art.DIMENSION);
         else {BladeStateAccess.of(blade).ifPresent(state->state.setComboSeq(combo(Art.DIMENSION,SlashArts.ArtsType.Super,true)));player.swing(InteractionHand.MAIN_HAND);}
         if (!LegacyCompat.isEnabled(LegacyCompat.SUPER_RESPECT_UNBREAKABLE)
-                || !blade.has(net.minecraft.core.component.DataComponents.UNBREAKABLE))
+                || !LegacyDurability.protectsFixedCost(blade,player.registryAccess()))
             blade.setDamageValue(blade.getMaxDamage()/2);
     }
     public static void syncMotion(Player player){player.hurtMarked=true;if(player instanceof ServerPlayer server)server.connection.send(new net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket(player));}

@@ -2,7 +2,7 @@ plugins {
     id 'java-library'
     id 'net.neoforged.moddev' version '2.0.144'
 }
-version = '0.3.0-dev.4'
+version = '0.3.0-dev.10'
 group = 'org.scex'
 base { archivesName = 'SEAC-SlashBlade-Old-Dream-Reforged-1.21.1' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
@@ -66,7 +66,7 @@ neoForge {
         contracts {
             server(); sourceSet = sourceSets.contracts
             gameDirectory = file(providers.gradleProperty('contractGameDir').getOrElse('runs/contracts'))
-            jvmArgument '-Xmx4G'
+            jvmArgument '-Xmx' + providers.gradleProperty('contractHeap').getOrElse('4G')
             jvmArgument '-XX:ActiveProcessorCount=2'
             jvmArgument '-Dscex.legacy17Contracts=true'
         }
@@ -100,6 +100,12 @@ spawn-protection=0
 sync-chunk-writes=true
 view-distance=4
 '''
+        def suite = providers.gradleProperty('contractSuite').getOrElse('integration-20261021')
+        if (!(suite in ['integration-20261021', 'legacy17']))
+            throw new GradleException("Unknown contractSuite: ${suite}")
+        def integrationFlag = new File(gameDir, 'integration-20261021.flag')
+        if (suite == 'integration-20261021') integrationFlag.text = ''
+        else integrationFlag.delete()
         new File(gameDir, 'contracts.json').delete()
     }
     doLast {
@@ -108,10 +114,13 @@ view-distance=4
             throw new GradleException('Runtime contracts failed')
     }
 }
-def slashBladeCoordinate = 'maven.modrinth:8T53F0sy:cw0UX6eX'
+def slashBladeCoordinate = 'maven.modrinth:8T53F0sy:zTMJum3Z'
+// A verified existing JAR can be reused for offline builds; the public default uses Modrinth Maven.
+def slashBladeLocal = providers.gradleProperty('slashBladeJar').orNull
+def slashBladeDependency = slashBladeLocal ? files(slashBladeLocal) : slashBladeCoordinate
 dependencies {
-    implementation slashBladeCoordinate
-    slashbladeVerification slashBladeCoordinate
+    implementation slashBladeDependency
+    slashbladeVerification slashBladeDependency
 }
 tasks.named('processResources') {
     inputs.property('mod_version', project.version)

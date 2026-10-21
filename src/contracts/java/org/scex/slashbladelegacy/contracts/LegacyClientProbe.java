@@ -48,7 +48,7 @@ public final class LegacyClientProbe {
     private static long inputNs,airStartNs,groundNs;
     private static boolean sampled,airObserved;
     @SubscribeEvent public static void tick(ClientTickEvent.Post event) {
-        if(!Boolean.getBoolean("scex.legacy.clientProbe") || Boolean.getBoolean("scex.legacy.stabilityProbe") || Boolean.getBoolean("scex.legacy.viewProbe") || Boolean.getBoolean("scex.legacy.lifecycleProbe") || done)return;
+        if(!Boolean.getBoolean("scex.legacy.clientProbe") || Boolean.getBoolean("scex.legacy.feedbackVisual") || Boolean.getBoolean("scex.legacy.stabilityProbe") || Boolean.getBoolean("scex.legacy.viewProbe") || Boolean.getBoolean("scex.legacy.lifecycleProbe") || done)return;
         var mc=Minecraft.getInstance();
         try {
             if(started==0){
@@ -96,6 +96,7 @@ public final class LegacyClientProbe {
                     }catch(Throwable e){failure=e;}
                 });
             }else if(phase==4 && prepared && ++ticks>=30){
+                if(AirTrickClientProbe.enabled()){ticks=0;phase=23;return;}
                 if(LegacyLeftClientProbe.enabled()){ticks=0;phase=19;return;}
                 if(LegacyFeatherClientProbe.enabled()){ticks=0;phase=20;return;}
                 if(LegacyAvoidClientProbe.enabled()){ticks=0;phase=22;return;}
@@ -175,6 +176,17 @@ public final class LegacyClientProbe {
                     results.put("first_person_right_chain",List.copyOf(chain));phase=13;
                 }}
             }else if(phase==13){
+                if(AirTrickClientProbe.enabled()) {
+                    results.put("air_trick_client",AirTrickClientProbe.report());
+                    if(captured.size()!=AirTrickClientProbe.SCREENSHOTS
+                            || !captured.containsAll(List.of("01-title.png","airtrick-empty-default.png","airtrick-empty-rebound.png",
+                                    "airtrick-locked-impact.png","airtrick-no-power.png")))throw new IllegalStateException("AirTrick screenshots incomplete: "+captured);
+                    Files.writeString(out.resolve("checks.json"),new GsonBuilder().setPrettyPrinting().create().toJson(results));
+                    Files.writeString(out.resolve("result.json"),new GsonBuilder().create().toJson(Map.of("passed",true,"status","captured",
+                            "screenshots",captured.size(),"checks_passed",true,"case_count",4,
+                            "entry","Raw KeyboardHandler, key mappings, MoveCommandMessage and server entity ticks")));
+                    done=true;mc.stop();return;
+                }
                 if(LegacyLeftClientProbe.enabled()){barrierTested=true;results.put("legacy17_left_client",LegacyLeftClientProbe.report());}
                 if(LegacyFeatherClientProbe.enabled()){barrierTested=true;results.put("legacy17_feather_client",LegacyFeatherClientProbe.report());}
                 if(LegacySuperClientProbe.enabled()){barrierTested=true;results.put("legacy17_super_client",LegacySuperClientProbe.report());}
@@ -224,7 +236,8 @@ public final class LegacyClientProbe {
             else if(phase==20){try{if(LegacyFeatherClientProbe.tick(mc,name->capture=name))phase=13;}catch(Throwable e){results.put("legacy17_feather_client",LegacyFeatherClientProbe.report());throw e;}}
             else if(phase==21){try{if(LegacySuperClientProbe.tick(mc,name->capture=name))phase=13;}catch(Throwable e){LegacySuperClientProbe.release(mc);results.put("legacy17_super_client",LegacySuperClientProbe.report());throw e;}}
             else if(phase==22){try{if(LegacyAvoidClientProbe.tick(mc,name->capture=name))phase=21;}catch(Throwable e){LegacyAvoidClientProbe.release(mc);results.put("legacy17_avoid_client",LegacyAvoidClientProbe.report());throw e;}}
-        }catch(Throwable e){done=true;LegacyRangeClientProbe.release(mc);LegacyArtsClientProbe.release(mc);LegacyGaiaClientProbe.release(mc);results.put("legacy17_gaia_client",LegacyGaiaClientProbe.report());mc.options.keyUse.setDown(false);mc.options.keyShift.setDown(false);mc.options.keyUp.setDown(false);results.put("legacy17_range_client",LegacyRangeClientProbe.report());results.put("legacy17_arts_client",LegacyArtsClientProbe.report());results.put("damage_probe",LegacyDamageProbe.report());com.mojang.logging.LogUtils.getLogger().error("SLASHBLADE_CLIENT_VERIFICATION_FAILED",e);try{Files.writeString(out.resolve("failure.txt"),e.toString());Files.writeString(out.resolve("checks.json"),new GsonBuilder().create().toJson(results));}catch(Exception ignored){}mc.stop();}
+            else if(phase==23){if(AirTrickClientProbe.tick(mc,name->capture=name))phase=13;}
+        }catch(Throwable e){done=true;if(AirTrickClientProbe.enabled()){AirTrickClientProbe.release(mc);results.put("air_trick_client",AirTrickClientProbe.report());}LegacyRangeClientProbe.release(mc);LegacyArtsClientProbe.release(mc);LegacyGaiaClientProbe.release(mc);results.put("legacy17_gaia_client",LegacyGaiaClientProbe.report());mc.options.keyUse.setDown(false);mc.options.keyShift.setDown(false);mc.options.keyUp.setDown(false);results.put("legacy17_range_client",LegacyRangeClientProbe.report());results.put("legacy17_arts_client",LegacyArtsClientProbe.report());results.put("damage_probe",LegacyDamageProbe.report());com.mojang.logging.LogUtils.getLogger().error("SLASHBLADE_CLIENT_VERIFICATION_FAILED",e);try{Files.writeString(out.resolve("failure.txt"),e.toString());Files.writeString(out.resolve("checks.json"),new GsonBuilder().create().toJson(results));if(AirTrickClientProbe.enabled())Files.writeString(out.resolve("result.json"),new GsonBuilder().create().toJson(Map.of("passed",false,"status","failed","screenshots",captured.size(),"checks_passed",false,"case_count",AirTrickClientProbe.report().get("case_count"))));}catch(Exception ignored){}mc.stop();}
     }
     private static void equip(Minecraft mc,String id){
         var s=mc.getSingleplayerServer();var p=s.getPlayerList().getPlayers().getFirst();

@@ -30,7 +30,7 @@ import java.util.UUID;
 public final class Contracts {
     public Contracts() { NeoForge.EVENT_BUS.addListener(this::started); }
     private void started(ServerStartedEvent event) {
-        if(Boolean.getBoolean("scex.legacy.clientProbe") || Boolean.getBoolean("scex.legacy.dualModeProbe"))return;
+        if(Boolean.getBoolean("scex.legacy.clientProbe") || Boolean.getBoolean("scex.legacy.dualModeProbe") || Boolean.getBoolean("scex.legacy.renderStallProbe"))return;
         if(Boolean.getBoolean("scex.legacy17Load")){
             ContractWorldReady.prepare(event.getServer(),preparation -> Legacy17LoadProbe.start(event.getServer(),preparation));return;
         }
@@ -41,6 +41,38 @@ public final class Contracts {
         report.put("fixture_preparation",preparation);
         try {
             require(Boolean.TRUE.equals(preparation.get("ready")),"Fixture entity lifecycle not ready: "+preparation);
+            if(Files.exists(Path.of("integration-20261021.flag"))){
+                Integration20261021Contracts.run(server,report);
+                AirTrickContracts.run(server,report);
+                PerformanceContracts.run(server,report);PerformanceContracts.regressions(server,report);
+                DualModeContracts.run(server,report);
+                Legacy17Contracts.run(server,report);
+                report.put("success",true);return;
+            }
+            if(Files.exists(Path.of("airtrick-20261011.flag"))){
+                AirTrickContracts.run(server,report);
+                Avoid17Contracts.run(server,report);
+                Super17Contracts.run(server,report);
+                FeedbackInputContracts.run(server,report);
+                ProjectileInteropContracts.run(server,report);
+                BladeColorContracts.run(server,report);
+                report.put("success",true);return;
+            }
+            if(Files.exists(Path.of("upstream-compat.flag"))){
+                MaidTimelineContracts.runTimelineOnly(server,report);
+                Legacy17Contracts.run(server,report);
+            }
+            boolean performance=Files.exists(Path.of("performance-20261008.flag"));
+            if(performance){PerformanceContracts.run(server,report);PerformanceContracts.regressions(server,report);}
+            if(performance || Files.exists(Path.of("feedback-20261008.flag"))){
+                FeedbackInputContracts.run(server,report);
+                var player=net.neoforged.neoforge.common.util.FakePlayerFactory.get(server.overworld(),new GameProfile(UUID.randomUUID(),"FeedbackStand"));
+                player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,new ItemStack(mods.flammpfeil.slashblade.registry.SlashBladeItems.SLASHBLADE.get()));
+                server.overworld().addNewPlayer(player);
+                try{BladeStandFeedbackContracts.run(player,report);FeedbackArtsContracts.run(player,report);NamedBladeFeedbackContracts.run(player,report);}finally{player.discard();}
+                DualModeContracts.run(server,report);DualWieldContracts.run(server,report);Avoid17Contracts.run(server,report);ProjectileInteropContracts.run(server,report);
+                report.put("success",true);return;
+            }
             if(Files.exists(Path.of("bugfix-20260917.flag"))){Bugfix17Contracts.run(server,report);Super17Contracts.run(server,report);report.put("success",true);return;}
             if(Files.exists(Path.of("maid-timeline-contracts.flag"))){MaidTimelineContracts.run(server,report);DualModeContracts.run(server,report);ProjectileInteropContracts.run(server,report);BatchPhantomContracts.run(server,report);DualWieldContracts.run(server,report);Legacy17Contracts.run(server,report);report.put("success",true);return;}
             if(Files.exists(Path.of("dual-mode-contracts.flag"))){DualModeContracts.run(server,report);ProjectileInteropContracts.run(server,report);BatchPhantomContracts.run(server,report);DualWieldContracts.run(server,report);Legacy17Contracts.run(server,report);report.put("success",true);return;}

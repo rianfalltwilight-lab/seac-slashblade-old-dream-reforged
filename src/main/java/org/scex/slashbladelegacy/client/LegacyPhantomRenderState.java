@@ -16,10 +16,12 @@ final class LegacyPhantomRenderState extends RenderStateShard {
     private static final TransparencyStateShard INVERSE=new TransparencyStateShard("legacy_phantom_inverse",()->{
         RenderSystem.enableBlend();RenderSystem.blendFunc(GlStateManager.SourceFactor.ONE_MINUS_DST_COLOR,GlStateManager.DestFactor.ZERO);
     },()->{RenderSystem.disableBlend();RenderSystem.defaultBlendFunc();});
-    static final RenderType NORMAL=type(false),REVERSE=type(true);
-    private static RenderType type(boolean inverse) {
-        return RenderType.create("legacy_phantom_"+(inverse?"inverse":"add"),DefaultVertexFormat.POSITION_COLOR,VertexFormat.Mode.TRIANGLES,1536,false,false,
+    static final RenderType NORMAL=type(false,true),REVERSE=type(true,true);
+    // Fading Drive geometry must not hide entities that render later.
+    static final RenderType DRIVE=type(false,false);
+    private static RenderType type(boolean inverse,boolean depthWrite) {
+        return RenderType.create("legacy_phantom_"+(inverse?"inverse":"add")+(depthWrite?"":"_color"),DefaultVertexFormat.POSITION_COLOR,VertexFormat.Mode.TRIANGLES,1536,false,false,
                 RenderType.CompositeState.builder().setShaderState(RENDERTYPE_LIGHTNING_SHADER).setOutputState(MAIN_TARGET)
-                        .setTransparencyState(inverse?INVERSE:ADD).setWriteMaskState(COLOR_DEPTH_WRITE).createCompositeState(false));
+                        .setTransparencyState(inverse?INVERSE:ADD).setWriteMaskState(depthWrite?COLOR_DEPTH_WRITE:COLOR_WRITE).createCompositeState(false));
     }
 }

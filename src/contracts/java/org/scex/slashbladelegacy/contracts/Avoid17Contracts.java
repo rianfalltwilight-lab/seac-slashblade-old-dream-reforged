@@ -46,9 +46,11 @@ final class Avoid17Contracts {
             for(int i=0;i<15;i++)InputClock.next(p);tap(p,InputCommand.FORWARD);check("combo still capped at tick twenty",near(p.getDeltaMovement().z,2.352));
             InputClock.next(p);tap(p,InputCommand.FORWARD);check("combo recovers at tick twenty one without landing",near(p.getDeltaMovement().z,3.136));
             check("three tick untouchable",p.getData(CapabilityMobEffect.MOB_EFFECT.get()).isUntouchable(p.level().getGameTime()+2) && !p.getData(CapabilityMobEffect.MOB_EFFECT.get()).isUntouchable(p.level().getGameTime()+3));
-            reset(p);press(p,InputCommand.FORWARD,InputCommand.SNEAK);check("forward lock keeps native AirTrick route",p.getPersistentData().getInt("SB.AvoidCombo")==0 && p.getPersistentData().contains("sb.avoid.trickup"));
+            reset(p);press(p,InputCommand.FORWARD,InputCommand.SNEAK);check("ineligible AirTrick does not fall through to TrickUp",p.getPersistentData().getInt("SB.AvoidCombo")==0 && !p.getPersistentData().contains("sb.avoid.trickup") && near(p.getDeltaMovement().y,-.2));
+            var nativeArts=mods.flammpfeil.slashblade.ability.SlayerStyleArts.getInstance();
+            nativeArts.executeTrickUp(p);
             tap(p,InputCommand.RIGHT);p.setPos(p.getX()+1,p.getY(),p.getZ());var afterTrick=p.position();
-            var nativeArts=mods.flammpfeil.slashblade.ability.SlayerStyleArts.getInstance();nativeArts.handleAvoidCounter(p);nativeArts.handleAvoidCounter(p);
+            nativeArts.handleAvoidCounter(p);nativeArts.handleAvoidCounter(p);
             check("dodge after TrickUp cancels prior position rollback",p.position().equals(afterTrick) && p.getPersistentData().getInt("SB.AvoidCombo")==1);
             reset(p);LegacyCompat.LEGACY_COMBAT.set(false);try{press(p,InputCommand.FORWARD);check("disabled config restores upstream air gate",near(p.getDeltaMovement().z,0));}finally{LegacyCompat.LEGACY_COMBAT.set(true);}
         }finally{p.setItemInHand(InteractionHand.MAIN_HAND,ItemStack.EMPTY);p.discard();}
