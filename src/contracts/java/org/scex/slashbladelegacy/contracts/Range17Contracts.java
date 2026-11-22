@@ -52,6 +52,11 @@ final class Range17Contracts {
             clock(player);check(shots(player).size()==6 && shots(player).stream().allMatch(s->s.art()==Art.SPIRAL && s.getDamage()==1) && state.getProudSoulCount()==989,"six spiral at eight, low rank one");
             press(player,EnumSet.noneOf(InputCommand.class));check(shots(player).size()==7 && state.getProudSoulCount()==988,"charged release still makes one ordinary sword");
             clear(player);player.getPersistentData().remove("slashblade_legacy_compat.spiral");
+            LegacyRangeAttack.perform(player,blade,Art.SPIRAL);int spiralSouls=state.getProudSoulCount();
+            check(shots(player).size()==6,"spiral formation for stale-hold check");clear(player);
+            LegacyRangeAttack.perform(player,blade,Art.SPIRAL);
+            check(shots(player).size()==6 && state.getProudSoulCount()==spiralSouls-10,"spiral hold left by vanished swords does not swallow the next cast");
+            clear(player);player.getPersistentData().remove("slashblade_legacy_compat.spiral");
             for(int band:new int[]{3,4,5}) {
                 rank.setRawRankPoint((long)band*rank.getUnitCapacity());rank.setLastUpdte(level.getGameTime());
                 LegacyRangeAttack.perform(player,blade,Art.BLISTERING);

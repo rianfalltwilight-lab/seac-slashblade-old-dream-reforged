@@ -106,12 +106,17 @@ public final class LegacyArtEntity extends EntityAbstractSummonedSword {
         if(age()==25) {
             var area=getBoundingBoxForJudgement();
             float damage=Math.min(1,1+BladeStateAccess.of(blade).orElseThrow().getAttackAmplifier()*LegacyArts.power(owner,blade)/5f);
-            for(var entity:LegacyTargets.within(owner,area))if(entity instanceof LivingEntity target) {
-                if(!LegacyDamage.holding(owner,blade))return;
-                if(!LegacyDamage.hit(owner,target,LegacyMove.SLASH_DIM,area,true,1,"JudgmentCut",.1f))continue;
-                owner.magicCrit(target);target.invulnerableTime=0;
-                LegacyArts.spread(owner,blade,target.position().add(0,target.getEyeHeight()/2,0),target.getYRot(),damage);
-                for(int i=0;i<2;i++)spawn(owner,blade,Mode.DIMENSION,target.position().add((random.nextFloat()-.5)*5,target.getBbHeight()*random.nextFloat(),(random.nextFloat()-.5)*5),10+i*3,1,true);
+            try {
+                for(var entity:LegacyTargets.within(owner,area))if(entity instanceof LivingEntity target) {
+                    if(!LegacyDamage.holding(owner,blade))return;
+                    if(!LegacyDamage.hit(owner,target,LegacyMove.SLASH_DIM,area,true,1,"JudgmentCut",.1f))continue;
+                    owner.magicCrit(target);target.invulnerableTime=0;
+                    LegacyArts.spread(owner,blade,target.position().add(0,target.getEyeHeight()/2,0),target.getYRot(),damage);
+                    for(int i=0;i<2;i++)spawn(owner,blade,Mode.DIMENSION,target.position().add((random.nextFloat()-.5)*5,target.getBbHeight()*random.nextFloat(),(random.nextFloat()-.5)*5),10+i*3,1,true);
+                }
+            } finally {
+                // 伤害结算后立即扣固定耐久：之后丢刀、下线、切换模式或区块停 tick 都不能免除。
+                LegacyArts.payFixedCost(owner,blade);
             }
         }
         if(age()==30)LegacyArts.finishSuper(owner,blade);
@@ -123,6 +128,8 @@ public final class LegacyArtEntity extends EntityAbstractSummonedSword {
         if(LegacyCompat.isEnabled(LegacyCompat.LEGACY_COMBAT) && left>=0 && left<=200)event.setCanceled(true);else entity.getPersistentData().remove(TELEPORT);
     }
     @Override public void burst(){discard();}
+    /** 跟随主人的剑技脚本（突刺、樱花、极大、次元斩）不写入区块：重新加载后不能对主人重放剩余脚本。 */
+    @Override public boolean shouldBeSaved(){return mode()==Mode.DIMENSION && super.shouldBeSaved();}
     @Override public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);if(ownerId!=null)tag.putUUID("LegacyOwner",ownerId);if(sourceId!=null)tag.putUUID("LegacySource",sourceId);
         tag.putInt("LegacyMode",mode().ordinal());tag.putInt("LegacyAge",age());tag.putInt("LegacyLife",lifetime());tag.putInt("LegacySeed",seed());tag.putBoolean("LegacyDimension",dimension);

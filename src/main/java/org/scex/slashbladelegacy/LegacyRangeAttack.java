@@ -95,6 +95,11 @@ public final class LegacyRangeAttack {
         }
         return result;
     }
+    /** 主人身边是否还有该技能未发射的待命剑。 */
+    private static boolean holding(ServerPlayer player,Art art) {
+        return !player.serverLevel().getEntitiesOfClass(LegacyPhantomSword.class,player.getBoundingBox().inflate(16),
+                sword->!sword.isRemoved() && !sword.hasFired() && sword.art()==art && sword.getOwner()==player).isEmpty();
+    }
     public static void perform(ServerPlayer player,ItemStack blade,Art art) {
         if(!org.scex.slashbladelegacy.LegacyMode.legacy(player) || !player.isAlive() || player.getMainHandItem()!=blade)return;
         var state=BladeStateAccess.of(blade).orElse(null);
@@ -102,8 +107,15 @@ public final class LegacyRangeAttack {
         int power=blade.getEnchantmentLevel(player.registryAccess().holderOrThrow(Enchantments.POWER));
         if(power<=0)return;
         var data=player.getPersistentData();long now=player.level().getGameTime();
-        if(art==Art.SINGLE && now<data.getLong(BLISTERING_UNTIL)) { data.putLong(BLISTERING_UNTIL,now);return; }
-        if(art==Art.SPIRAL && data.hasUUID(SPIRAL) && now<data.getLong(SPIRAL_UNTIL)) { data.remove(SPIRAL);return; }
+        // 只有仍有待发的剑时才按“释放”处理；剑已全部消失时清掉残留标记，本次按新施放处理。
+        if(art==Art.SINGLE && now<data.getLong(BLISTERING_UNTIL)) {
+            if(holding(player,Art.BLISTERING)) { data.putLong(BLISTERING_UNTIL,now);return; }
+            data.remove(BLISTERING_UNTIL);
+        }
+        if(art==Art.SPIRAL && data.hasUUID(SPIRAL) && now<data.getLong(SPIRAL_UNTIL)) {
+            if(holding(player,Art.SPIRAL)) { data.remove(SPIRAL);return; }
+            data.remove(SPIRAL);data.remove(SPIRAL_UNTIL);
+        }
         Entity target=state.getTargetEntity(player.level());
         if(target!=null && !LegacyTargets.attackable(player,target))target=null;
         if(art==Art.STORM && target==null)return;

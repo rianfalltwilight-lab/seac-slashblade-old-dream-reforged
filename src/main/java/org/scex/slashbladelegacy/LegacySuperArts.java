@@ -47,7 +47,7 @@ public final class LegacySuperArts {
         if(NeoForge.EVENT_BUS.post(event).isCanceled() || player.getMainHandItem()!=blade || !eligible(blade))return;
         combo=event.getComboState();
         if(combo==null || combo.equals(ComboStateRegistry.NONE.getId()) || ComboStateRegistry.REGISTRY.get(combo)==null)return;
-        // r87 manager pays at tick 30; no early hurtAndBreak, soul fee, ground check or priority gate.
+        // The JUDGEMENT field pays the fixed cost at its damage pass (tick 25); no early hurtAndBreak, soul fee, ground check or priority gate.
         state.updateComboSeq(player,combo);
     }
 }

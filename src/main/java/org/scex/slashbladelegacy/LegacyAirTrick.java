@@ -59,7 +59,9 @@ public final class LegacyAirTrick {
     private static boolean trick(ServerPlayer player,ItemStack blade,Entity locked) {
         var last=LAST_HIT.get(player);
         if(last==null)return false;
-        var sword=((ServerLevel)player.level()).getEntity(last.sword());
+        var level=(ServerLevel)player.level();var sword=level.getEntity(last.sword());
+        // 卡住的剑只在 tick 时计算 200 tick 寿命；停 tick 的剑不能作为永久锚点。
+        if(sword==null || !level.isPositionEntityTicking(sword.blockPosition()))return false;
         LivingEntity target=sword instanceof LegacyPhantomSword phantom?phantom.stuckTarget()
                 :sword instanceof LegacySummonedBlade summoned?summoned.stuckTarget():null;
         if(target==null || !target.isAlive() || !LegacyTargets.attackable(player,target))return false;

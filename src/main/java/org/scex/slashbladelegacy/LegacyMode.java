@@ -122,7 +122,17 @@ public final class LegacyMode {
         String namespace=net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).getNamespace();
         return namespace.equals("slashblade") || namespace.equals(LegacyCompat.MOD_ID);
     }
-    private static boolean dormant(Entity entity){return knownAction(entity) && entity.level() instanceof net.minecraft.server.level.ServerLevel level && !level.isPositionEntityTicking(entity.blockPosition());}
+    /**
+     * 该动作在原地已无法推进：位于实体不 tick 的区块（模拟距离外、仅加载未 tick、tick 冻结），或不在主人所在维度。
+     * 不限命名空间：附属的召唤剑同样不能阻塞切换。
+     */
+    private static boolean stalled(Entity entity,Player player){
+        if(entity.level()!=player.level())return true;
+        if(!(entity.level() instanceof net.minecraft.server.level.ServerLevel level))return false;
+        if(level.tickRateManager().isEntityFrozen(entity))return true;
+        // 乘客由载具 tick，按根载具所在位置判断。
+        return !level.isPositionEntityTicking(entity.getRootVehicle().blockPosition());
+    }
     private static boolean expired(Entity entity){
         // 模拟距离外的投射物可能停止 tick。
         // 切换模式时检查到期条件。保留下一 tick 的正常到期边界。
@@ -134,11 +144,12 @@ public final class LegacyMode {
     private static boolean blocks(Entity entity,Player player){
         if(entity.isRemoved() || owner(entity)!=player)return false;
         if(expired(entity)){entity.discard();return false;}
-        return !dormant(entity);
+        return !stalled(entity,player);
     }
+    /** 只收尾本模组与重锋的停滞动作；附属实体不按模式代次管理，只是不再阻塞切换。 */
     private static void retireDormant(ServerPlayer player){
         var actions=new HashSet<Entity>(UNCLAIMED);var owned=OWNED.get(player.getUUID());if(owned!=null)actions.addAll(owned);
-        for(var entity:actions)if(!entity.isRemoved() && owner(entity)==player && dormant(entity))entity.discard();
+        for(var entity:actions)if(!entity.isRemoved() && owner(entity)==player && knownAction(entity) && stalled(entity,player))entity.discard();
     }
     private static void message(ServerPlayer player,String key){player.displayClientMessage(Component.translatable("slashblade_legacy_compat.mode."+key),true);}
     public static boolean finish(ServerPlayer player){

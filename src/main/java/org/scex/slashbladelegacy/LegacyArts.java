@@ -235,6 +235,9 @@ public final class LegacyArts {
     public static void finishSuper(Player player,ItemStack blade) {
         if(LegacyDamage.holding(player,blade))recovery(player,Art.DIMENSION);
         else {BladeStateAccess.of(blade).ifPresent(state->state.setComboSeq(combo(Art.DIMENSION,SlashArts.ArtsType.Super,true)));player.swing(InteractionHand.MAIN_HAND);}
+    }
+    /** 超 SA 固定耐久：在次元斩伤害结算时支付一次。 */
+    public static void payFixedCost(Player player,ItemStack blade) {
         if (!LegacyCompat.isEnabled(LegacyCompat.SUPER_RESPECT_UNBREAKABLE)
                 || !LegacyDurability.protectsFixedCost(blade,player.registryAccess()))
             blade.setDamageValue(blade.getMaxDamage()/2);

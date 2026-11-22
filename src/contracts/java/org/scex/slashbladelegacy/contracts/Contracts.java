@@ -28,11 +28,24 @@ import java.util.UUID;
 /** Uses actual loaded items, attributes, damage, serialization; not a client acceptance claim. */
 @Mod("slashblade_legacy_contracts")
 public final class Contracts {
-    public Contracts() { NeoForge.EVENT_BUS.addListener(this::started); }
+    private static final net.neoforged.neoforge.registries.DeferredRegister<EntityType<?>> ENTITIES=
+            net.neoforged.neoforge.registries.DeferredRegister.create(net.minecraft.core.registries.Registries.ENTITY_TYPE,"slashblade_legacy_contracts");
+    /** A SlashBlade summoned sword registered under a third namespace, as addons do. */
+    static final net.neoforged.neoforge.registries.DeferredHolder<EntityType<?>,EntityType<mods.flammpfeil.slashblade.entity.EntityAbstractSummonedSword>> ADDON_SWORD=
+            ENTITIES.register("addon_sword",()->EntityType.Builder.<mods.flammpfeil.slashblade.entity.EntityAbstractSummonedSword>of(
+                    mods.flammpfeil.slashblade.entity.EntityAbstractSummonedSword::new,net.minecraft.world.entity.MobCategory.MISC)
+                    .sized(.5f,.5f).clientTrackingRange(8).updateInterval(1).build("slashblade_legacy_contracts:addon_sword"));
+    public Contracts(net.neoforged.bus.api.IEventBus modBus) { ENTITIES.register(modBus);NeoForge.EVENT_BUS.addListener(this::started); }
     private void started(ServerStartedEvent event) {
         if(Boolean.getBoolean("scex.legacy.clientProbe") || Boolean.getBoolean("scex.legacy.dualModeProbe") || Boolean.getBoolean("scex.legacy.renderStallProbe"))return;
         if(Boolean.getBoolean("scex.legacy17Load")){
             ContractWorldReady.prepare(event.getServer(),preparation -> Legacy17LoadProbe.start(event.getServer(),preparation));return;
+        }
+        if(Files.exists(Path.of("integration-20261021.flag"))){
+            // Real-tick chunk lifecycle first; its rows travel with the fixture preparation into the synchronous suite.
+            ContractWorldReady.prepare(event.getServer(),preparation -> ChunkLifecycleContracts.start(event.getServer(),preparation,
+                    lifecycle -> run(event.getServer(),lifecycle)));
+            return;
         }
         ContractWorldReady.prepare(event.getServer(),preparation -> run(event.getServer(),preparation));
     }
@@ -42,6 +55,8 @@ public final class Contracts {
         try {
             require(Boolean.TRUE.equals(preparation.get("ready")),"Fixture entity lifecycle not ready: "+preparation);
             if(Files.exists(Path.of("integration-20261021.flag"))){
+                @SuppressWarnings("unchecked") var lifecycle=(java.util.Map<String,Object>)preparation.get("chunk_lifecycle");
+                require(lifecycle!=null && Boolean.TRUE.equals(lifecycle.get("passed")),"Chunk lifecycle contracts failed");
                 Integration20261021Contracts.run(server,report);
                 AirTrickContracts.run(server,report);
                 PerformanceContracts.run(server,report);PerformanceContracts.regressions(server,report);

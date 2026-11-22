@@ -68,6 +68,13 @@ final class Super17Contracts {
             active=managers(p);p.getInventory().setItem(1,blade);p.setItemInHand(InteractionHand.MAIN_HAND,new ItemStack(Items.STICK));
             if(!active.isEmpty())for(int i=0;i<30;i++)active.getFirst().tick();
             check("switch item cannot evade source blade half durability",blade.getDamageValue()==blade.getMaxDamage()/2 && managers(p).isEmpty());
+            blade=prepare(p,LegacyArts.Art.DIMENSION);input(p,true,0);input(p,false,20);active=managers(p);
+            if(!active.isEmpty()){var manager=active.getFirst();for(int i=0;i<26;i++)manager.tick();
+                p.setItemInHand(InteractionHand.MAIN_HAND,ItemStack.EMPTY);for(int i=0;i<10 && !manager.isRemoved();i++)manager.tick();}
+            check("dropping the blade after the judgement damage still pays the fixed cost",!active.isEmpty() && blade.getDamageValue()==blade.getMaxDamage()/2 && managers(p).isEmpty());
+            p.setItemInHand(InteractionHand.MAIN_HAND,ItemStack.EMPTY);
+            blade=prepare(p,LegacyArts.Art.DIMENSION);input(p,true,0);input(p,false,20);active=managers(p);
+            check("owner-bound super script is not written to chunk storage",!active.isEmpty() && !active.getFirst().shouldBeSaved());
         }finally{clear(p);p.setItemInHand(InteractionHand.MAIN_HAND,ItemStack.EMPTY);p.getInventory().setItem(1,ItemStack.EMPTY);p.setGameMode(GameType.SURVIVAL);p.discard();}
         long failed=rows.stream().filter(r->Boolean.FALSE.equals(r.get("passed"))).count();
         if(failed!=0)throw new AssertionError("Super input contracts failed "+failed+" / "+rows.size());
