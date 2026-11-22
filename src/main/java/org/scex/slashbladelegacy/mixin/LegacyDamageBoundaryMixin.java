@@ -25,7 +25,8 @@ public abstract class LegacyDamageBoundaryMixin {
         if(!applies(blade))return;
         var state=BladeStateAccess.of(blade).orElseThrow();
         if(damage<=0 && !state.isSealed())state.setBroken(false);
-        state.setDamage(Math.clamp(damage,0,Math.max(0,blade.getMaxDamage())));ci.cancel();
+        // Resharped 2.2.x ignores state.setDamage on Unbreakable blades; r87 strict mode still writes durability.
+        blade.set(net.minecraft.core.component.DataComponents.DAMAGE,Math.clamp(damage,0,Math.max(0,blade.getMaxDamage())));ci.cancel();
     }
     @Inject(method="damageItem",at=@At("HEAD"),cancellable=true)
     private void legacyCompat$break(ItemStack blade,int amount,LivingEntity entity,Consumer<Item> onBroken,CallbackInfoReturnable<Integer> cir) {

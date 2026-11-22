@@ -1,12 +1,12 @@
 [
   {
     "name": "SlashBlade: Resharpened",
-    "version": "2.0.8-1.21.1",
+    "version": "2.2.1-1.21.1",
     "source": "Modrinth Maven",
-    "coordinate": "maven.modrinth:8T53F0sy:zTMJum3Z",
+    "coordinate": "maven.modrinth:8T53F0sy:IEvIPjvJ",
     "projectId": "8T53F0sy",
-    "versionId": "zTMJum3Z",
-    "size": 3926632,
-    "sha256": "34e7f11649e3d07e8d403465739550758bcea1430969dacbef29a6e5835a1c7d"
+    "versionId": "IEvIPjvJ",
+    "size": 3930976,
+    "sha256": "ee0f2e9dc320df20d3f0e3d84805a0d92a068aeef379afbf2dac48fa03e34f9a"
   }
 ]

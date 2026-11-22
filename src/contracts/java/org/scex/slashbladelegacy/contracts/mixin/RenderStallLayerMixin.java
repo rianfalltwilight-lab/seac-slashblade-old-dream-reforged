@@ -26,7 +26,8 @@ public abstract class RenderStallLayerMixin {
         try {original.call(poses,buffers,light,user,limb,amount,partial,age,yaw,pitch);}
         finally {RenderStallMetrics.add(RenderStallMetrics.LAYER_NS,System.nanoTime()-start);}
     }
-    @WrapOperation(method="lambda$render$1",
+    // Resharped 2.0.x compiles the render body as lambda$render$1; 2.1.x and later as lambda$render$2.
+    @WrapOperation(method={"lambda$render$1","lambda$render$2"},
             at=@At(value="INVOKE",target="Lmods/flammpfeil/slashblade/capability/slashblade/ISlashBladeState;peekCurrentComboStateTicks(Lnet/minecraft/world/entity/LivingEntity;)Ljava/util/Map$Entry;"))
     private Map.Entry<Integer,ResourceLocation> probe$peek(ISlashBladeState state,LivingEntity user,Operation<Map.Entry<Integer,ResourceLocation>> original) {
         if(!RenderStallMetrics.active())return original.call(state,user);

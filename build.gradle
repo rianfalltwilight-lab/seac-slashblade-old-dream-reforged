@@ -114,7 +114,7 @@ view-distance=4
             throw new GradleException('Runtime contracts failed')
     }
 }
-def slashBladeCoordinate = 'maven.modrinth:8T53F0sy:zTMJum3Z'
+def slashBladeCoordinate = 'maven.modrinth:8T53F0sy:IEvIPjvJ'
 // A verified existing JAR can be reused for offline builds; the public default uses Modrinth Maven.
 def slashBladeLocal = providers.gradleProperty('slashBladeJar').orNull
 def slashBladeDependency = slashBladeLocal ? files(slashBladeLocal) : slashBladeCoordinate
